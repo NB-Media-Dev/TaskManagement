@@ -1,0 +1,40 @@
+.employee-action-row {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.employee-action-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.employee-filter-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+}
+
+.employee-form-grid {
+  display: grid;
+  grid-template-columns: repeat(1, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+@media (min-width: 640px) {
+  .employee-action-row {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .employee-filter-bar {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .employee-form-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

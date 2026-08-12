@@ -1,0 +1,11 @@
+.report-chart-container {
+  width: 100%;
+  height: 320px;
+}
+
+.reports-header-icon {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}

@@ -1,0 +1,27 @@
+@media (max-width: 1024px) {
+  .sidebar-aside {
+    position: fixed;
+    transform: translateX(-100%);
+  }
+
+  .sidebar-aside.mobile-open {
+    transform: translateX(0);
+  }
+
+  .topbar-mobile-menu-btn {
+    display: flex;
+  }
+
+  .topbar-breadcrumb {
+    display: none;
+  }
+}
+
+@media (max-width: 576px) {
+  .app-main-content {
+    padding: 1rem;
+  }
+  .auth-card {
+    padding: 1.5rem;
+  }
+}

@@ -1,0 +1,119 @@
+
+
+.table-responsive-wrapper {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  border-radius: var(--radius-md, 12px);
+  border: 1px solid var(--border, #E2E8F0);
+  background-color: var(--card, #FFFFFF);
+  box-shadow: var(--shadow-xs, 0 1px 2px rgba(0, 0, 0, 0.05));
+  margin-top: 0.5rem;
+  margin-bottom: 0.5rem;
+  box-sizing: border-box;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.table-responsive-wrapper::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+
+.data-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  text-align: left;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  table-layout: auto;
+}
+
+
+.table-header {
+  background-color: var(--surface, #F8FAFC);
+}
+
+.table-header th,
+.table-header .table-cell {
+  padding: 0.75rem 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-light, #64748B);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+  vertical-align: middle;
+  border-bottom: 1.5px solid var(--border, #E2E8F0);
+  background-color: var(--surface, #F8FAFC);
+  height: 48px;
+  box-sizing: border-box;
+}
+
+
+.table-header th:first-child,
+.table-header .table-cell:first-child {
+  border-top-left-radius: var(--radius-md, 12px);
+}
+
+.table-header th:last-child,
+.table-header .table-cell:last-child {
+  border-top-right-radius: var(--radius-md, 12px);
+}
+
+/* Body Rows */
+.table-row {
+  border-bottom: 1px solid var(--border, #E2E8F0);
+  transition: background-color 0.15s ease-in-out;
+  height: 54px;
+}
+
+.table-row:hover {
+  background-color: rgba(248, 250, 252, 0.8);
+}
+
+.table-row:last-child td,
+.table-row:last-child .table-cell {
+  border-bottom: none;
+}
+
+.table-row:last-child td:first-child {
+  border-bottom-left-radius: var(--radius-md, 12px);
+}
+
+.table-row:last-child td:last-child {
+  border-bottom-right-radius: var(--radius-md, 12px);
+}
+
+
+.table-cell {
+  padding: 0.75rem 0.75rem;
+  color: var(--text, #0F172A);
+  vertical-align: middle;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  border-bottom: 1px solid var(--border, #E2E8F0);
+  box-sizing: border-box;
+  word-break: break-word;
+}
+
+.table-cell.font-medium {
+  font-weight: 500;
+  color: var(--text, #0F172A);
+}
+
+.table-cell.text-muted {
+  color: var(--text-light, #64748B);
+}
+
+
+.table-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  white-space: nowrap;
+  vertical-align: middle;
+}

@@ -1,0 +1,15 @@
+{
+  "name": "task-management-server",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "main": "back.js",
+  "scripts": {
+    "start": "node back.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.6",
+    "express": "^4.21.2",
+    "mysql2": "^3.12.0"
+  }
+}

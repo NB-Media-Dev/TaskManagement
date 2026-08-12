@@ -1,0 +1,104 @@
+.modal-fixed-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.modal-backdrop-blur {
+  position: absolute;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+
+.modal-container {
+  position: relative;
+  width: 100%;
+  background-color: var(--card);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-xl);
+  border: 1px solid var(--border);
+  max-height: 90vh;
+  overflow-y: auto;
+  z-index: 60;
+}
+
+
+.modal-sm { max-width: 28rem; }
+.modal-md { max-width: 32rem; }
+.modal-lg { max-width: 42rem; }
+.modal-xl { max-width: 56rem; }
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.modal-title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--text);
+  margin: 0;
+}
+
+.modal-close-btn {
+  padding: 0.375rem;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  border: none;
+  color: var(--text-light);
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.modal-close-btn:hover {
+  background-color: rgba(0, 0, 0, 0.05);
+  color: var(--text);
+}
+
+.dark .modal-close-btn:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.modal-body {
+  padding: 1.5rem;
+}
+
+.modal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  margin-top: 1.5rem;
+}
+
+/* Confirm Dialog Specific Styles */
+.confirm-dialog-content {
+  display: flex;
+  gap: 1rem;
+}
+
+.confirm-dialog-icon-badge {
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 50%;
+  background-color: var(--danger-50);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.confirm-dialog-icon {
+  width: 1.25rem;
+  height: 1.25rem;
+  color: var(--danger);
+}
