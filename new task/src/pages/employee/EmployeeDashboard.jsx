@@ -60,7 +60,8 @@ export default function EmployeeDashboard() {
     dDate.setHours(0, 0, 0, 0);
 
     const diffDays = Math.round((dDate.getTime() - todayMidnight.getTime()) / (1000 * 3600 * 24));
-    return diffDays === 1;
+    // Include active tasks that have not crossed the due date (diffDays >= 0) and are due today or soon
+    return diffDays >= 0 && diffDays <= 2;
   });
 
   const renderTasksGrid = () => {
@@ -151,14 +152,30 @@ export default function EmployeeDashboard() {
               Task Due Date Reminder Alert
             </h4>
             <p style={{ margin: 0, fontSize: '0.875rem', lineHeight: '1.4' }}>
-              You have <strong>{dueSoonTasks.length}</strong> task(s) approaching the due date (1 day left):
+              You have <strong>{dueSoonTasks.length}</strong> task(s) with upcoming deadlines:
             </p>
             <ul style={{ margin: '0.35rem 0 0 1.25rem', padding: 0, fontSize: '0.85rem' }}>
-              {dueSoonTasks.map((t, idx) => (
-                <li key={t.assign_id || t.id || idx}>
-                  <strong>{t.task_name}</strong> — Due on {formatDate(t.deadline || t.dline)}
-                </li>
-              ))}
+              {dueSoonTasks.map((t, idx) => {
+                const deadlineVal = t.deadline || t.dline;
+                const dDate = new Date(deadlineVal);
+                dDate.setHours(0, 0, 0, 0);
+                const diffDays = Math.round((dDate.getTime() - todayMidnight.getTime()) / (1000 * 3600 * 24));
+
+                let dueLabel = `Due on ${formatDate(deadlineVal)}`;
+                if (diffDays === 0) {
+                  dueLabel = <strong style={{ color: '#dc2626' }}>Today is the last date for this task</strong>;
+                } else if (diffDays === 1) {
+                  dueLabel = `Due tomorrow (1 day left)`;
+                } else if (diffDays > 1) {
+                  dueLabel = `Due on ${formatDate(deadlineVal)} (${diffDays} days left)`;
+                }
+
+                return (
+                  <li key={t.assign_id || t.id || idx} style={{ marginBottom: '0.2rem' }}>
+                    <strong>{t.task_name}</strong> — {dueLabel}
+                  </li>
+                );
+              })}
             </ul>
           </div>
         </div>

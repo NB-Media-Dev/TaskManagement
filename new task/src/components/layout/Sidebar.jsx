@@ -4,7 +4,6 @@ import {
   LayoutDashboard,
   Users,
   CheckSquare,
-  Calendar,
   BarChart3,
   User,
   Settings,
@@ -19,8 +18,6 @@ import  Avatar  from '../ui/Avatar';
 const adminNav = [
   { to: '/admin', icon: LayoutDashboard, label: 'Dashboard' },
   { to: '/admin/employees', icon: Users, label: 'Employees' },
-  // { to: '/admin/attendance', icon: Calendar, label: 'Attendance' },
-  // { to: '/admin/tasks', icon: CheckSquare, label: 'Tasks' },
   { to: '/admin/reports', icon: BarChart3, label: 'Reports' },
   { to: '/admin/settings', icon: Settings, label: 'Settings' },
 ];
@@ -34,7 +31,6 @@ const tlNav = [
 
 const employeeNav = [
   { to: '/employee', icon: LayoutDashboard, label: 'Dashboard' },
-  // { to: '/employee/attendance', icon: Calendar, label: 'My Attendance' },
   { to: '/employee/tasks', icon: ClipboardList, label: 'Tasks' },
   { to: '/employee/profile', icon: User, label: 'Profile' },
 ];

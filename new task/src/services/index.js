@@ -37,12 +37,6 @@ export const changePassword = ({ email,  newPassword }) =>
 export const getAttendance = ({ id, from, to } = {}) =>
   api.get('/AdminAttendance', { params: { id, from, to } });
 
-export const getWeeklyAttendance = () => api.get('/WeeklyAttendance');
-export const getMonthlyAttendance = () => api.get('/MonthlyAttendance');
-export const getTodayEmployeeAttendance = () => api.get('/TodayEmployeeAttendance');
-export const markBatchAttendance = ({ items, action }) =>
-  api.post('/MarkBatchAttendance', { items, action });
-
 
 
 // ---------- Tasks ----------

@@ -805,6 +805,7 @@ app.post("/AddEmployee", (req, res) => {
                                 const userPassword = password || phone || "123456";
                                 syncUserCredentials(cleanName, cleanEmail, userPassword, role || "Employee");
                                 notifyTLForRole(role || "Employee", "Admin", `New ${role || "Team"} Member Added`, `Admin added new ${role || "Employee"} employee "${cleanName}" (${cleanEmail}) to your team.`, "EMPLOYEE_ADDED");
+                                sendNotification(cleanEmail, "Admin", `Welcome to Task Management System`, `You have been added as a ${role || "Employee"} employee by Admin.`, "EMPLOYEE_ADDED");
                                 return res.json({ success: true, message: "Employee Added successfully" });
                             });
                             return;
@@ -828,6 +829,13 @@ app.post("/AddEmployee", (req, res) => {
                         "Admin",
                         `New ${role || "Team"} Member Added`,
                         `Admin added new ${role || "Employee"} employee "${cleanName}" (${cleanEmail}) to your team.`,
+                        "EMPLOYEE_ADDED"
+                    );
+                    sendNotification(
+                        cleanEmail,
+                        "Admin",
+                        `Welcome to Task Management System`,
+                        `You have been added as a ${role || "Employee"} employee by Admin.`,
                         "EMPLOYEE_ADDED"
                     );
 
@@ -1045,6 +1053,14 @@ app.put("/updateEmployee/:id", (req, res) => {
                 }
             });
 
+            sendNotification(
+                updatedEmail,
+                "Admin",
+                `Account Details Updated`,
+                `Your employee profile and role (${updatedRole}) were updated by Admin.`,
+                "ROLE_UPDATED"
+            );
+
             res.json({
                 success: true,
                 message: "Employee updated successfully"
@@ -1059,7 +1075,7 @@ app.put("/MakeTL/:id", (req, res) => {
 
    
     const getEmployeeSql = `
-        SELECT emp_role
+        SELECT emp_role, emp_email
         FROM employee
         WHERE emp_id = ?
     `;
@@ -1081,6 +1097,7 @@ app.put("/MakeTL/:id", (req, res) => {
         }
 
         const team = empResult[0].emp_role;
+        const targetEmail = empResult[0].emp_email;
 
        
         const checkTlSql = `
@@ -1124,6 +1141,10 @@ app.put("/MakeTL/:id", (req, res) => {
                     });
                 }
 
+                if (targetEmail) {
+                    sendNotification(targetEmail, "Admin", `Promoted to Team Lead`, `You have been promoted to Team Lead by Admin.`, "ROLE_UPDATED");
+                }
+
                 res.json({
                     success: true,
                     message: "Employee promoted to TL"
@@ -1138,40 +1159,48 @@ app.put("/UndoTL/:id",(req,res)=>{
 
     const {id}=req.params;
 
-    const sql=`
-        UPDATE employee
-        SET
-            position='Employee'
-        WHERE emp_id=?
-    `;
+    const getEmpSql = "SELECT emp_email FROM employee WHERE emp_id = ?";
+    db.query(getEmpSql, [id], (eErr, eRows) => {
+        const targetEmail = (!eErr && eRows && eRows[0]) ? eRows[0].emp_email : null;
 
-    db.query(sql,[id],(err,result)=>{
+        const sql=`
+            UPDATE employee
+            SET
+                position='Employee'
+            WHERE emp_id=?
+        `;
 
-        if(err){
+        db.query(sql,[id],(err,result)=>{
 
-            return res.json({
-                success:false,
-                message:err.message
+            if(err){
+
+                return res.json({
+                    success:false,
+                    message:err.message
+                });
+
+            }
+
+            if(result.affectedRows===0){
+
+                return res.json({
+                    success:false,
+                    message:"Employee not found"
+                });
+
+            }
+
+            if (targetEmail) {
+                sendNotification(targetEmail, "Admin", `Position Updated`, `Your position has been set to Employee by Admin.`, "ROLE_UPDATED");
+            }
+
+            res.json({
+                success:true,
+                message:"TL removed. Employee restored"
             });
 
-        }
-
-        if(result.affectedRows===0){
-
-            return res.json({
-                success:false,
-                message:"Employee not found"
-            });
-
-        }
-
-        res.json({
-            success:true,
-            message:"TL removed. Employee restored"
         });
-
     });
-
 });
 
 app.post("/ChangePassword", (req, res) => {
@@ -1259,251 +1288,6 @@ app.get("/AdminAttendance", (req, res) => {
         });
     });
 
-});
-app.get("/WeeklyAttendance", (req, res) => {
-
-    const sql = `
-    SELECT
-        DAYNAME(dates) AS day,
-        ROUND(
-            SUM(CASE WHEN status='Present' THEN 1 ELSE 0 END)*100/COUNT(*),
-            2
-        ) AS present,
-
-        ROUND(
-            SUM(CASE WHEN status='Absent' THEN 1 ELSE 0 END)*100/COUNT(*),
-            2
-        ) AS absent
-
-    FROM attendance
-    GROUP BY DAYNAME(dates)
-    ORDER BY MIN(dates);
-    `;
-
-    db.query(sql,(err,result)=>{
-
-        if(err){
-            return res.json({
-                success:false,
-                message:err.message
-            });
-        }
-
-        res.json({
-            success:true,
-            data:result
-        });
-
-    });
-
-});
-
-app.get("/MonthlyAttendance", (req, res) => {
-
-    const sql = `
-    SELECT
-        MONTHNAME(dates) AS month,
-        ROUND(
-            SUM(CASE WHEN status='Present' THEN 1 ELSE 0 END)*100/COUNT(*),
-            2
-        ) AS present,
-
-        ROUND(
-            SUM(CASE WHEN status='Absent' THEN 1 ELSE 0 END)*100/COUNT(*),
-            2
-        ) AS absent
-
-    FROM attendance
-    GROUP BY MONTHNAME(dates), MONTH(dates)
-    ORDER BY MONTH(dates);
-    `;
-
-    db.query(sql, (err, result) => {
-
-        if (err) {
-            return res.json({
-                success: false,
-                message: err.message
-            });
-        }
-
-        res.json({
-            success: true,
-            data: result
-        });
-
-    });
-
-});
-
-app.get("/TodayEmployeeAttendance", (req, res) => {
-    const empSql = "SELECT CAST(emp_id AS CHAR) AS emp_id, emp_name, emp_email, emp_role FROM employee";
-    db.query(empSql, (err, empRows) => {
-        let employees = [];
-        if (!err && empRows && empRows.length > 0) {
-            employees = empRows.map(e => ({
-                emp_id: String(e.emp_id),
-                emp_name: String(e.emp_name),
-                emp_email: e.emp_email || '',
-                emp_role: e.emp_role || 'Employee'
-            }));
-        }
-
-        const attNameSql = "SELECT DISTINCT CAST(name AS CHAR) AS name FROM attendance WHERE name IS NOT NULL AND name != ''";
-        db.query(attNameSql, (err, attRows) => {
-            if (!err && attRows && attRows.length > 0) {
-                attRows.forEach(row => {
-                    const strName = String(row.name);
-                    const exists = employees.some(e => e.emp_name === strName || e.emp_id === strName);
-                    if (!exists) {
-                        employees.push({
-                            emp_id: strName,
-                            emp_name: strName,
-                            emp_email: '',
-                            emp_role: 'Employee'
-                        });
-                    }
-                });
-            }
-
-            const userSql = "SELECT u_name, u_email FROM users WHERE u_role='Employee'";
-            db.query(userSql, (err, userRows) => {
-                if (!err && userRows && userRows.length > 0) {
-                    userRows.forEach(u => {
-                        const strName = String(u.u_name);
-                        const strEmail = String(u.u_email);
-                        const exists = employees.some(e => e.emp_name === strName || e.emp_id === strEmail || e.emp_email === strEmail);
-                        if (!exists) {
-                            employees.push({
-                                emp_id: strEmail,
-                                emp_name: strName,
-                                emp_email: strEmail,
-                                emp_role: 'Employee'
-                            });
-                        }
-                    });
-                }
-
-                if (employees.length === 0) {
-                    return res.json({ success: true, data: [] });
-                }
-
-                const todaySql = `
-                    SELECT 
-                        attendance_id,
-                        CAST(name AS CHAR) AS name,
-                        DATE_FORMAT(dates, '%Y-%m-%d') AS dates,
-                        DATE_FORMAT(checkin, '%Y-%m-%d %h:%i %p') AS checkin,
-                        IFNULL(DATE_FORMAT(checkout, '%Y-%m-%d %h:%i %p'), 'Not Checked Out') AS checkout,
-                        workhours,
-                        status
-                    FROM attendance
-                    WHERE dates = CURDATE() OR DATE(dates) = CURDATE()
-                `;
-                db.query(todaySql, (err, todayRows) => {
-                    const todayMap = {};
-                    if (!err && todayRows) {
-                        todayRows.forEach(r => {
-                            todayMap[String(r.name)] = r;
-                        });
-                    }
-
-                    const result = employees.map(emp => {
-                        const att = todayMap[emp.emp_name] || todayMap[emp.emp_id] || {};
-                        return {
-                            emp_id: emp.emp_id,
-                            emp_name: emp.emp_name,
-                            emp_email: emp.emp_email || '',
-                            emp_role: emp.emp_role || 'Employee',
-                            attendance_id: att.attendance_id || null,
-                            status: att.status || 'Not Marked',
-                            checkin: att.checkin || null,
-                            checkout: att.checkout || null,
-                            workhours: att.workhours || '00:00:00'
-                        };
-                    });
-
-                    res.json({ success: true, data: result });
-                });
-            });
-        });
-    });
-});
-
-app.post("/MarkBatchAttendance", async (req, res) => {
-    const { items, action } = req.body;
-    if (!items || !Array.isArray(items) || items.length === 0) {
-        return res.json({ success: false, message: "No employees selected" });
-    }
-
-    const processItemAsync = (item) => {
-        return new Promise((resolve, reject) => {
-            const empName = String(item.name || '');
-            const empId = String(item.emp_id || '');
-            const identifier = empName || empId;
-
-            const callback = (err, result) => {
-                if (err) return reject(err);
-                resolve(result);
-            };
-
-            if (action === 'checkin') {
-                const checkSql = "SELECT * FROM attendance WHERE (name=? OR name=?) AND (dates=CURDATE() OR DATE(dates)=CURDATE())";
-                db.query(checkSql, [empName, empId], (err, rows) => {
-                    if (err) return callback(err);
-                    if (rows && rows.length > 0) {
-                        const updateSql = "UPDATE attendance SET checkin=NOW(), status='Present', checkout=NULL, workhours='00:00:00' WHERE attendance_id=?";
-                        db.query(updateSql, [rows[0].attendance_id], callback);
-                    } else {
-                        const insertSql = "INSERT INTO attendance (name, dates, checkin, checkout, workhours, status) VALUES (?, CURDATE(), NOW(), NULL, '00:00:00', 'Present')";
-                        db.query(insertSql, [identifier], callback);
-                    }
-                });
-            } else if (action === 'checkout') {
-                const checkSql = "SELECT * FROM attendance WHERE (name=? OR name=?) AND (dates=CURDATE() OR DATE(dates)=CURDATE())";
-                db.query(checkSql, [empName, empId], (err, rows) => {
-                    if (err) return callback(err);
-                    if (rows && rows.length > 0) {
-                        const updateSql = `
-                            UPDATE attendance 
-                            SET checkout=NOW(),
-                                status='Present',
-                                workhours=SEC_TO_TIME(TIMESTAMPDIFF(SECOND, IFNULL(checkin, NOW()), NOW()))
-                            WHERE attendance_id=?
-                        `;
-                        db.query(updateSql, [rows[0].attendance_id], callback);
-                    } else {
-                        const insertSql = "INSERT INTO attendance (name, dates, checkin, checkout, workhours, status) VALUES (?, CURDATE(), NOW(), NOW(), '08:00:00', 'Present')";
-                        db.query(insertSql, [identifier], callback);
-                    }
-                });
-            } else if (action === 'absent') {
-                const checkSql = "SELECT * FROM attendance WHERE (name=? OR name=?) AND (dates=CURDATE() OR DATE(dates)=CURDATE())";
-                db.query(checkSql, [empName, empId], (err, rows) => {
-                    if (err) return callback(err);
-                    if (rows && rows.length > 0) {
-                        const updateSql = "UPDATE attendance SET checkin=NULL, checkout=NULL, workhours='00:00:00', status='Absent' WHERE attendance_id=?";
-                        db.query(updateSql, [rows[0].attendance_id], callback);
-                    } else {
-                        const insertSql = "INSERT INTO attendance (name, dates, checkin, checkout, workhours, status) VALUES (?, CURDATE(), NULL, NULL, '00:00:00', 'Absent')";
-                        db.query(insertSql, [identifier], callback);
-                    }
-                });
-            } else if (action === 'undo') {
-                const deleteSql = "DELETE FROM attendance WHERE (name=? OR name=?) AND (dates=CURDATE() OR DATE(dates)=CURDATE())";
-                db.query(deleteSql, [empName, empId], callback);
-            } else {
-                return callback(new Error("Invalid action"));
-            }
-        });
-    };
-
-    try {
-        await Promise.all(items.map(item => processItemAsync(item)));
-        res.json({ success: true, message: `Attendance updated (${action}) for ${items.length} employee(s)` });
-    } catch (err) {
-        res.json({ success: false, message: err.message });
-    }
 });
 
 
@@ -1826,64 +1610,110 @@ app.get("/notifications/:email", (req, res) => {
 
     checkAndCreateOverdueNotifications();
 
-    const fetchSql = `
-        SELECT 
-            id,
-            COALESCE(recipient_email, receiver_email, 'Admin') AS recipient_email,
-            sender_role,
-            title,
-            message,
-            type,
-            task_id,
-            is_read,
-            DATE_FORMAT(created_at, '%Y-%m-%d %H:%i:%s') AS created_at
-        FROM notifications 
-        ORDER BY created_at DESC LIMIT 50
+    const cleanEmail = String(email).trim().toLowerCase();
+
+   
+    const lookupSql = `
+        SELECT u.u_role, u.u_name, u.u_email, e.position, e.emp_role, e.emp_name, e.emp_email
+        FROM users u
+        LEFT JOIN employee e ON LOWER(TRIM(e.emp_email)) = LOWER(TRIM(u.u_email)) OR LOWER(TRIM(e.emp_name)) = LOWER(TRIM(u.u_name))
+        WHERE LOWER(TRIM(u.u_email)) = ? OR LOWER(TRIM(e.emp_email)) = ? OR LOWER(TRIM(e.emp_name)) = ?
     `;
 
-    db.query(fetchSql, (errNotif, results) => {
-        if (errNotif) {
-            return res.json({ success: false, message: errNotif.message });
+    db.query(lookupSql, [cleanEmail, cleanEmail, cleanEmail], (lookupErr, lookupRows) => {
+        let isUserAdmin = cleanEmail.includes('admin') || cleanEmail === 'admin';
+        let isUserTL = cleanEmail === 'tl';
+        let userEmpEmail = cleanEmail;
+        let userEmpName = cleanEmail;
+
+        if (!lookupErr && lookupRows && lookupRows.length > 0) {
+            const row = lookupRows[0];
+            if (row.u_role === 'Admin') isUserAdmin = true;
+            if (row.position === 'TL' || row.u_role === 'TL') isUserTL = true;
+            if (row.emp_email) userEmpEmail = row.emp_email.trim().toLowerCase();
+            if (row.u_email && !userEmpEmail) userEmpEmail = row.u_email.trim().toLowerCase();
+            if (row.emp_name) userEmpName = row.emp_name.trim().toLowerCase();
+            if (row.u_name && !userEmpName) userEmpName = row.u_name.trim().toLowerCase();
         }
 
-        if (!results || results.length === 0) {
-            sendNotification(email, 'System', 'Welcome to Task Management System', 'Notification panel is ready and active.', 'SYSTEM');
-            return res.json({
-                success: true,
-                data: [{
-                    id: 1,
-                    recipient_email: email,
-                    sender_role: 'System',
-                    title: 'Welcome to Task Management System',
-                    message: 'Notification panel is ready and active.',
-                    type: 'SYSTEM',
-                    is_read: 0,
-                    created_at: new Date().toISOString().replace('T', ' ').substring(0, 19)
-                }]
-            });
-        }
+        const proceedWithQuery = (finalAdmin, finalTL, targetEmail, targetName) => {
+            let whereConditions = [];
+            let params = [];
 
-        const lowerEmail = String(email).toLowerCase().trim();
-        db.query("SELECT u_role FROM users WHERE LOWER(TRIM(u_email)) = ?", [lowerEmail], (uErr, uRows) => {
-            const userRole = uRows && uRows[0] ? uRows[0].u_role : '';
-            const isUserAdmin = lowerEmail.includes('admin') || userRole === 'Admin';
-            const isUserTL = userRole === 'TL';
-
-            const filtered = results.filter(n => {
-                const rEmail = (n.recipient_email || '').toLowerCase().trim();
-                const recvEmail = (n.receiver_email || '').toLowerCase().trim();
+            if (finalAdmin) {
                 
-                if (!rEmail && !recvEmail) return true;
-                if (rEmail === lowerEmail || recvEmail === lowerEmail) return true;
-                if (isUserAdmin && (rEmail === 'admin' || recvEmail === 'admin')) return true;
-                if (isUserTL && (rEmail === 'tl' || recvEmail === 'tl')) return true;
-                if (rEmail === 'admin' && lowerEmail.includes('admin')) return true;
-                if (rEmail === 'tl' && isUserTL) return true;
-                return false;
-            });
+                whereConditions.push(`(
+                    LOWER(TRIM(IFNULL(recipient_email, ''))) IN ('admin', ?)
+                    OR LOWER(TRIM(IFNULL(receiver_email, ''))) IN ('admin', ?)
+                    OR (sender_role = 'TL' AND type IN ('TASK_UPDATED_BY_TL', 'TL_REVIEW', 'EMPLOYEE_UPDATE'))
+                    OR type = 'SYSTEM'
+                )`);
+                params.push(targetEmail, targetEmail);
+            } else if (finalTL) {
+                // TL ONLY sees notifications targeted at TL or TL's email, or task updates from employees, or new employee added notifications
+                whereConditions.push(`(
+                    LOWER(TRIM(IFNULL(recipient_email, ''))) IN ('tl', ?)
+                    OR LOWER(TRIM(IFNULL(receiver_email, ''))) IN ('tl', ?)
+                    OR (sender_role = 'Employee' AND type = 'TASK_UPDATED_BY_EMPLOYEE')
+                    OR type = 'EMPLOYEE_ADDED'
+                )`);
+                params.push(targetEmail, targetEmail);
+            } else {
+                // Employee / Tester / Developer / etc. ONLY sees notifications targeted at their specific email or name
+                whereConditions.push(`(
+                    LOWER(TRIM(IFNULL(recipient_email, ''))) IN (?, ?)
+                    OR LOWER(TRIM(IFNULL(receiver_email, ''))) IN (?, ?)
+                )`);
+                params.push(targetEmail, targetName, targetEmail, targetName);
+            }
 
-            res.json({ success: true, data: filtered.length > 0 ? filtered : results });
-        });
+            const fetchSql = `
+                SELECT 
+                    id,
+                    COALESCE(recipient_email, receiver_email, 'Admin') AS recipient_email,
+                    receiver_email,
+                    sender_role,
+                    title,
+                    message,
+                    type,
+                    task_id,
+                    is_read,
+                    DATE_FORMAT(created_at, '%Y-%m-%d %H:%i:%s') AS created_at
+                FROM notifications 
+                WHERE ${whereConditions.join(" AND ")}
+                ORDER BY created_at DESC LIMIT 50
+            `;
+
+            db.query(fetchSql, params, (errNotif, results) => {
+                if (errNotif) {
+                    return res.json({ success: false, message: errNotif.message });
+                }
+
+                if (!results || results.length === 0) {
+                    return res.json({
+                        success: true,
+                        data: []
+                    });
+                }
+
+                return res.json({ success: true, data: results });
+            });
+        };
+
+        if (!isUserAdmin && !isUserTL && (!lookupRows || lookupRows.length === 0)) {
+            const empFallbackSql = "SELECT emp_name, emp_email, position FROM employee WHERE LOWER(TRIM(emp_email)) = ? OR LOWER(TRIM(emp_name)) = ?";
+            db.query(empFallbackSql, [cleanEmail, cleanEmail], (eErr, eRows) => {
+                if (!eErr && eRows && eRows.length > 0) {
+                    const eRow = eRows[0];
+                    if (eRow.position === 'TL') isUserTL = true;
+                    if (eRow.emp_email) userEmpEmail = eRow.emp_email.trim().toLowerCase();
+                    if (eRow.emp_name) userEmpName = eRow.emp_name.trim().toLowerCase();
+                }
+                proceedWithQuery(isUserAdmin, isUserTL, userEmpEmail, userEmpName);
+            });
+        } else {
+            proceedWithQuery(isUserAdmin, isUserTL, userEmpEmail, userEmpName);
+        }
     });
 });
 
@@ -1907,24 +1737,42 @@ app.put("/notifications/read-all/:email", (req, res) => {
     if (!email) return res.json({ success: false, message: "Email required" });
     const cleanEmail = String(email).trim().toLowerCase();
 
-    db.query("SELECT u_role FROM users WHERE LOWER(TRIM(u_email)) = ?", [cleanEmail], (uErr, uRows) => {
-        const userRole = uRows && uRows[0] ? uRows[0].u_role : '';
-        const isUserAdmin = cleanEmail.includes('admin') || userRole === 'Admin';
-        const isUserTL = userRole === 'TL';
+    const lookupSql = `
+        SELECT u.u_role, e.position, e.emp_name, e.emp_email
+        FROM users u
+        LEFT JOIN employee e ON LOWER(TRIM(e.emp_email)) = LOWER(TRIM(u.u_email)) OR LOWER(TRIM(e.emp_name)) = LOWER(TRIM(u.u_name))
+        WHERE LOWER(TRIM(u.u_email)) = ? OR LOWER(TRIM(e.emp_email)) = ? OR LOWER(TRIM(e.emp_name)) = ?
+    `;
 
-        let whereClauses = [
-            "LOWER(TRIM(recipient_email)) = ?",
-            "LOWER(TRIM(receiver_email)) = ?"
-        ];
-        let params = [cleanEmail, cleanEmail];
+    db.query(lookupSql, [cleanEmail, cleanEmail, cleanEmail], (uErr, uRows) => {
+        let isUserAdmin = cleanEmail.includes('admin') || cleanEmail === 'admin';
+        let isUserTL = cleanEmail === 'tl';
+        let empEmail = cleanEmail;
+        let empName = cleanEmail;
+
+        if (!uErr && uRows && uRows.length > 0) {
+            const row = uRows[0];
+            if (row.u_role === 'Admin') isUserAdmin = true;
+            if (row.position === 'TL' || row.u_role === 'TL') isUserTL = true;
+            if (row.emp_email) empEmail = row.emp_email.trim().toLowerCase();
+            if (row.emp_name) empName = row.emp_name.trim().toLowerCase();
+        }
+
+        let whereClauses = [];
+        let params = [];
 
         if (isUserAdmin) {
-            whereClauses.push("LOWER(TRIM(recipient_email)) = 'admin'");
-            whereClauses.push("LOWER(TRIM(receiver_email)) = 'admin'");
-        }
-        if (isUserTL) {
-            whereClauses.push("LOWER(TRIM(recipient_email)) = 'tl'");
-            whereClauses.push("LOWER(TRIM(receiver_email)) = 'tl'");
+            whereClauses.push("LOWER(TRIM(recipient_email)) IN ('admin', ?)");
+            whereClauses.push("LOWER(TRIM(receiver_email)) IN ('admin', ?)");
+            params.push(empEmail, empEmail);
+        } else if (isUserTL) {
+            whereClauses.push("LOWER(TRIM(recipient_email)) IN ('tl', ?)");
+            whereClauses.push("LOWER(TRIM(receiver_email)) IN ('tl', ?)");
+            params.push(empEmail, empEmail);
+        } else {
+            whereClauses.push("LOWER(TRIM(recipient_email)) IN (?, ?)");
+            whereClauses.push("LOWER(TRIM(receiver_email)) IN (?, ?)");
+            params.push(empEmail, empName, empEmail, empName);
         }
 
         const sql = `UPDATE notifications SET is_read = 1 WHERE ${whereClauses.join(" OR ")}`;

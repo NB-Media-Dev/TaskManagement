@@ -101,7 +101,8 @@ export default function Topbar({ onMobileMenu }) {
 
   const loadNotifications = async () => {
     try {
-      const emailToUse = userEmail || user?.email || 'Admin';
+      const defaultRoleEmail = (user?.role === 'TL' || user?.position === 'TL') ? 'TL' : (user?.role === 'Admin' ? 'Admin' : (user?.name || 'Admin'));
+      const emailToUse = userEmail || user?.email || defaultRoleEmail;
       const res = await getNotifications(emailToUse);
       if (res.data?.success) {
         const fetchedList = res.data.data || [];
