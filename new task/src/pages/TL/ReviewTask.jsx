@@ -349,6 +349,7 @@ export default function ReviewTask({ task: propTask, open: propOpen, onClose: pr
                 style={{
                   display: 'flex',
                   justifyContent: 'flex-end',
+                  flexWrap: 'wrap',
                   gap: '0.75rem',
                   paddingTop: '0.5rem',
                   marginTop: '0.25rem',

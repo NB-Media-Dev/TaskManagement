@@ -212,7 +212,7 @@ export default function TLAdminTasks() {
 
   return (
     <div className="dashboard-space-y">
-      <div className="employee-action-row" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+      <div className="employee-action-row">
         <div>
           <h1 className="dashboard-header-title">Team Tasks</h1>
           <p className="dashboard-header-sub">
@@ -276,7 +276,6 @@ export default function TLAdminTasks() {
           }
 
           return (
-             <div style={{ wordBreak: 'break-word', whiteSpace: 'pre-wrap', display: 'block' }}>
             <div className="table-responsive-wrapper">
               <table className="data-table">
                 <thead>
@@ -367,7 +366,6 @@ export default function TLAdminTasks() {
                   })}
                 </tbody>
               </table>
-            </div>
             </div>
           );
         })()}

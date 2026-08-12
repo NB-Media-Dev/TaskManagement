@@ -177,7 +177,7 @@ export default function AdminDashboard() {
               value={selectedTeam}
               onChange={(e) => setSelectedTeam(e.target.value)}
               className="form-input"
-              style={{ width: "180px", padding: "6px 10px" }}
+              style={{ maxWidth: "100%", width: "180px", padding: "6px 10px" }}
             >
               {TEAMS_LIST.map((dept) => (
                 <option key={dept} value={dept}>

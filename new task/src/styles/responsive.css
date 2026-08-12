@@ -1,7 +1,44 @@
+
+img, video, canvas, svg, input, select, textarea {
+  max-width: 100%;
+}
+
+.employee-filter-bar select,
+.employee-filter-bar input,
+.task-filter-group select,
+.task-filter-group input,
+.task-filter-dates select,
+.task-filter-dates input {
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+@media (max-width: 640px) {
+  .employee-filter-bar select,
+  .employee-filter-bar input,
+  .task-filter-group select,
+  .task-filter-group input,
+  .task-filter-dates input {
+    width: 100% !important;
+  }
+
+  .employee-action-buttons {
+    width: 100%;
+  }
+
+  .employee-action-buttons button,
+  .employee-action-buttons a {
+    flex: 1 1 auto;
+    justify-content: center;
+  }
+}
+
+
 @media (max-width: 1024px) {
   .sidebar-aside {
     position: fixed;
     transform: translateX(-100%);
+    box-shadow: var(--shadow-xl, 0 20px 25px -5px rgba(0, 0, 0, 0.1));
   }
 
   .sidebar-aside.mobile-open {
@@ -15,13 +52,136 @@
   .topbar-breadcrumb {
     display: none;
   }
+
+  .app-main-content {
+    padding: 1.25rem;
+  }
 }
 
-@media (max-width: 576px) {
+
+@media (max-width: 768px) {
+  .topbar-header {
+    padding: 0 1rem;
+  }
+
+  .topbar-title {
+    font-size: 1rem;
+  }
+
   .app-main-content {
     padding: 1rem;
   }
-  .auth-card {
-    padding: 1.5rem;
+
+  .container-responsive {
+    width: 100%;
+  }
+
+  .notif-popup-container {
+    right: 0.75rem;
+    left: 0.75rem;
+    width: auto;
+    max-width: none;
+  }
+
+  .modal-container {
+    max-height: 85vh;
+    border-radius: var(--radius-md, 12px);
+  }
+
+  .modal-header {
+    padding: 0.875rem 1rem;
+  }
+
+  .modal-body {
+    padding: 1rem;
+  }
+
+  .modal-footer {
+    padding-top: 1rem;
+    flex-wrap: wrap;
+  }
+
+  .modal-footer button {
+    flex: 1 1 auto;
   }
 }
+
+
+@media (max-width: 576px) {
+  .app-main-content {
+    padding: 0.75rem;
+  }
+
+  .auth-card {
+    padding: 1.25rem;
+  }
+
+  .stat-card {
+    padding: 1rem;
+  }
+
+  .stat-card-value {
+    font-size: 1.25rem;
+  }
+
+  .radio-grid {
+    grid-template-columns: repeat(1, minmax(0, 1fr));
+  }
+
+  .table-responsive-wrapper {
+    margin-top: 0.25rem;
+    margin-bottom: 0.25rem;
+  }
+
+  .data-table th,
+  .data-table td,
+  .table-cell {
+    padding: 0.5rem 0.625rem;
+    font-size: 0.8125rem;
+  }
+
+  .table-actions {
+    flex-wrap: wrap;
+    gap: 0.375rem;
+  }
+
+  .table-actions button,
+  .table-actions a {
+    padding: 0.35rem 0.5rem;
+    font-size: 0.75rem;
+  }
+}
+
+
+@media (max-width: 400px) {
+  .app-main-content {
+    padding: 0.5rem;
+  }
+
+  .topbar-header {
+    padding: 0 0.75rem;
+  }
+
+  .topbar-user-name,
+  .topbar-user-email {
+    display: none;
+  }
+
+  .stat-card-header {
+    flex-direction: column-reverse;
+    gap: 0.5rem;
+  }
+
+  .stat-card-icon-badge {
+    width: 2.25rem;
+    height: 2.25rem;
+  }
+}
+
+
+@media (min-width: 1400px) {
+  .container-responsive {
+    max-width: 1536px;
+  }
+}
+

@@ -185,10 +185,11 @@ export default function Reports() {
             display: "flex",
             justifyContent: "space-between",
             alignItems: "center",
-            marginBottom: "1rem"
+            marginBottom: "1rem",
+            flexWrap: "wrap",
+            gap: "1rem"
           }}
         >
-
           <h3 className="dashboard-card-title">
             Task History
           </h3>
@@ -196,163 +197,92 @@ export default function Reports() {
             style={{
               display: "flex",
               gap: "10px",
-             
+              flexWrap: "wrap",
+              alignItems: "center",
+              width: "100%",
+              maxWidth: "100%"
             }}
           >
-
             <select
               value={period}
-              
-              onChange={
-                e => setPeriod(e.target.value)
-              }
-             style={{
-
-              width:"220px",
-
-              padding:"8px",
-
-              borderRadius:"6px"
-
-            }}
+              onChange={e => setPeriod(e.target.value)}
+              className="form-input"
+              style={{
+                flex: "1 1 140px",
+                minWidth: "120px",
+                maxWidth: "100%",
+                padding: "8px",
+                borderRadius: "6px"
+              }}
             >
-              <option value="All">
-                All
-              </option>
-
-              <option value="Daily">
-                Daily
-              </option>
-
-              <option value="Weekly">
-                Weekly
-              </option>
-
-              <option value="Monthly">
-                Monthly
-              </option>
-
+              <option value="All">All Period</option>
+              <option value="Daily">Daily</option>
+              <option value="Weekly">Weekly</option>
+              <option value="Monthly">Monthly</option>
             </select>
             <select
               value={view}
-              variant="success"
-              onChange={
-                e => {
-                  setView(e.target.value);
-                  setSelectedEmployee("");
-                  setSelectedTeam("");
-                }
-              }
+              onChange={e => {
+                setView(e.target.value);
+                setSelectedEmployee("");
+                setSelectedTeam("");
+              }}
+              className="form-input"
               style={{
-
-              width:"220px",
-
-              padding:"8px",
-
-              borderRadius:"6px"
-
-            }}
+                flex: "1 1 140px",
+                minWidth: "120px",
+                maxWidth: "100%",
+                padding: "8px",
+                borderRadius: "6px"
+              }}
             >
-              
-              <option value="view">
-                 Choose Type
-                </option>
-
-              <option value="Employee">
-                Employee Wise
-              </option>
-
-              <option value="Team">
-                Team Wise
-              </option>
+              <option value="view">Choose Type</option>
+              <option value="Employee">Employee Wise</option>
+              <option value="Team">Team Wise</option>
             </select>
-            {
-              view === "Employee" &&
+            {view === "Employee" && (
               <select
                 value={selectedEmployee}
-                onChange={
-                  e => setSelectedEmployee(e.target.value)
-                }
-               style={{
-
-              width:"220px",
-
-              padding:"8px",
-
-              borderRadius:"6px"
-
-            }}
+                onChange={e => setSelectedEmployee(e.target.value)}
+                className="form-input"
+                style={{
+                  flex: "1 1 140px",
+                  minWidth: "120px",
+                  maxWidth: "100%",
+                  padding: "8px",
+                  borderRadius: "6px"
+                }}
               >
-                <option value="">
-                  Select Employee
-                </option>
-
-                {
-                  employees.map(emp => (
-
-                    <option
-                      key={emp.emp_id}
-                      value={emp.emp_name}
-                    >
-
-                      {emp.emp_name}
-
-                    </option>
-
-                  ))
-                }
+                <option value="">Select Employee</option>
+                {employees.map(emp => (
+                  <option key={emp.emp_id} value={emp.emp_name}>
+                    {emp.emp_name}
+                  </option>
+                ))}
               </select>
-
-            }
-            {
-              view === "Team" &&
+            )}
+            {view === "Team" && (
               <select
                 value={selectedTeam}
-                onChange={
-                  e => setSelectedTeam(e.target.value)
-                }
+                onChange={e => setSelectedTeam(e.target.value)}
+                className="form-input"
                 style={{
-
-              width:"220px",
-
-              padding:"8px",
-
-              borderRadius:"6px"
-
-            }}
+                  flex: "1 1 140px",
+                  minWidth: "120px",
+                  maxWidth: "100%",
+                  padding: "8px",
+                  borderRadius: "6px"
+                }}
               >
-                <option value="">
-                  Select Team
-                </option>
-
-
-                {
-                  teams.map(team => (
-
-                    <option
-                      key={team}
-                      value={team}
-                    >
-
-                      {team}
-
-                    </option>
-
-                  ))
-
-                }
-
-
+                <option value="">Select Team</option>
+                {teams.map(team => (
+                  <option key={team} value={team}>
+                    {team}
+                  </option>
+                ))}
               </select>
-
-
-            }
-
-
-
+            )}
           </div>
-
-
         </div>
         {
           loading ?
@@ -465,12 +395,8 @@ export default function Reports() {
                 </table>
               </div>
         }
-
       </Card>
 
     </div>
-
   );
-
-
 }

@@ -188,11 +188,11 @@ export default function TLDashboard() {
 
   return (
     <div className="dashboard-space-y">
-      <div className="employee-action-row" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+      <div className="employee-action-row">
         <div>
           <h1 className="dashboard-header-title">Team Lead Dashboard</h1>
           <p className="dashboard-header-sub">
-            Assign tasks, review daily employee updates, and reply with feedback.
+            {user?.email ? `${user.email.split('@')[0]}, here's` : "Here's"} Assign tasks, review daily employee updates, and reply with feedback.
           </p>
         </div>
       </div>
@@ -270,11 +270,7 @@ export default function TLDashboard() {
                 </option>
               ))}
             </select>
-            {selectedEmp && (
-              <Button size="sm" variant="outline" onClick={() => setSelectedEmp("")}>
-                Reset Filter
-              </Button>
-            )}
+           
           </div>
         </div>
 
@@ -377,8 +373,6 @@ export default function TLDashboard() {
 
           return (
             <div className="table-responsive-wrapper">
-             <div style={{ wordBreak: 'break-word', whiteSpace: 'pre-wrap', display: 'block' }}>
-
               <table className="data-table">
                 <thead>
                   <tr className="table-header">
@@ -421,7 +415,6 @@ export default function TLDashboard() {
                   })}
                 </tbody>
               </table>
-              </div>
             </div>
           );
         })()}

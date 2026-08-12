@@ -3,6 +3,12 @@
   height: 320px;
 }
 
+@media (max-width: 576px) {
+  .report-chart-container {
+    height: 250px;
+  }
+}
+
 .reports-header-icon {
   display: flex;
   align-items: center;

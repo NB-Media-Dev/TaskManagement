@@ -10,6 +10,7 @@ import {
   LogOut,
   ChevronLeft,
   ClipboardList,
+  X,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { classNames } from '../../utils/helpers';
@@ -72,20 +73,33 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose
             <div className="sidebar-brand-icon">
               <ClipboardList className="w-5 h-5 text-white" />
             </div>
-            {!collapsed && (
+            {(!collapsed || mobileOpen) && (
               <span className="sidebar-brand-title">
                 Task Management
               </span>
             )}
           </div>
-          <button
-          type="button"
-            onClick={onToggle}
-            className="sidebar-toggle-btn"
-            aria-label="Toggle sidebar"
-          >
-            <ChevronLeft className={classNames('sidebar-toggle-icon', collapsed && 'rotated')} />
-          </button>
+          <div className="sidebar-header-actions">
+            {mobileOpen ? (
+              <button
+                type="button"
+                onClick={onMobileClose}
+                className="sidebar-toggle-btn sidebar-mobile-close-btn"
+                aria-label="Close menu"
+              >
+                <X className="w-5 h-5 text-white" />
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={onToggle}
+                className="sidebar-toggle-btn"
+                aria-label="Toggle sidebar"
+              >
+                <ChevronLeft className={classNames('sidebar-toggle-icon', collapsed && 'rotated')} />
+              </button>
+            )}
+          </div>
         </div>
 
         <nav className="sidebar-nav">
@@ -111,7 +125,7 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose
                     />
                   )}
                   <item.icon className="sidebar-nav-icon" />
-                  {!collapsed && <span className="whitespace-nowrap">{item.label}</span>}
+                  {(!collapsed || mobileOpen) && <span className="whitespace-nowrap">{item.label}</span>}
                 </>
               )}
             </NavLink>
@@ -119,13 +133,13 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose
         </nav>
 
         <div className="sidebar-footer">
-          <div className={classNames('sidebar-user-card', collapsed && 'centered')}>
+          <div className={classNames('sidebar-user-card', (collapsed && !mobileOpen) && 'centered')}>
             <Avatar 
               name={user?.name || (isAdmin ? 'Admin User' : 'Employee Staff')} 
               size="sm" 
               className="text-xs font-bold"
             />
-            {!collapsed && (
+            {(!collapsed || mobileOpen) && (
               <div className="sidebar-user-info">
                 <p className="sidebar-user-name">
                   {user?.name || (isAdmin ? 'Admin' : 'Employee')}
@@ -139,11 +153,11 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose
             onClick={logout}
             className={classNames(
               'sidebar-logout-btn',
-              collapsed && 'centered'
+              (collapsed && !mobileOpen) && 'centered'
             )}
           >
             <LogOut className="sidebar-nav-icon" />
-            {!collapsed && <span>Log out</span>}
+            {(!collapsed || mobileOpen) && <span>Log out</span>}
           </button>
         </div>
       </aside>

@@ -274,60 +274,67 @@ const filteredEmployees = sortedEmployees.filter((emp) => {
             placeholder="Search the employee"
           />
             <select
-            value={view}
-            onChange={(e) => {
-              setView(e.target.value);
-              setSelectedEmployee("");
-              setSelectedTeam("");
-            }}
-            style={{
-              width: "220px",
-              padding: "8px",
-              borderRadius: "6px",
-            }}
-          >
-            <option value="">Choose Type</option>
-            <option value="Employee">Employee Wise</option>
-            <option value="Team">Team Wise</option>
-          </select>
-          {view === "Employee" && (
-            <select
-              value={selectedEmployee}
-              onChange={(e) => setSelectedEmployee(e.target.value)}
+              value={view}
+              onChange={(e) => {
+                setView(e.target.value);
+                setSelectedEmployee("");
+                setSelectedTeam("");
+              }}
+              className="form-input"
               style={{
-                width: "220px",
+                flex: "1 1 150px",
+                minWidth: "130px",
+                maxWidth: "100%",
                 padding: "8px",
                 borderRadius: "6px",
               }}
             >
-              <option value="">Select Employee</option>
-
-              {employees.map((emp) => (
-                <option key={emp.emp_id} value={emp.emp_name}>
-                  {emp.emp_name}
-                </option>
-              ))}
+              <option value="">Choose Type</option>
+              <option value="Employee">Employee Wise</option>
+              <option value="Team">Team Wise</option>
             </select>
-          )}
-          {view === "Team" && (
-            <select
-              value={selectedTeam}
-              onChange={(e) => setSelectedTeam(e.target.value)}
-              style={{
-                width: "220px",
-                padding: "8px",
-                borderRadius: "6px",
-              }}
-            >
-              <option value="">Select Team</option>
-
-              {teams.map((team) => (
-                <option key={team} value={team}>
-                  {team}
-                </option>
-              ))}
-            </select>
-          )}
+            {view === "Employee" && (
+              <select
+                value={selectedEmployee}
+                onChange={(e) => setSelectedEmployee(e.target.value)}
+                className="form-input"
+                style={{
+                  flex: "1 1 150px",
+                  minWidth: "130px",
+                  maxWidth: "100%",
+                  padding: "8px",
+                  borderRadius: "6px",
+                }}
+              >
+                <option value="">Select Employee</option>
+                {employees.map((emp) => (
+                  <option key={emp.emp_id} value={emp.emp_name}>
+                    {emp.emp_name}
+                  </option>
+                ))}
+              </select>
+            )}
+            {view === "Team" && (
+              <select
+                value={selectedTeam}
+                onChange={(e) => setSelectedTeam(e.target.value)}
+                className="form-input"
+                style={{
+                  flex: "1 1 150px",
+                  minWidth: "130px",
+                  maxWidth: "100%",
+                  padding: "8px",
+                  borderRadius: "6px",
+                }}
+              >
+                <option value="">Select Team</option>
+                {teams.map((team) => (
+                  <option key={team} value={team}>
+                    {team}
+                  </option>
+                ))}
+              </select>
+            )}
 
         </div>
 
