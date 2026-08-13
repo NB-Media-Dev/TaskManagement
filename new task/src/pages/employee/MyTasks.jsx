@@ -214,7 +214,8 @@ export default function MyTasks() {
                       </div>
 
                       <h4 className="task-card-title">{t.task_name}</h4>
-                      <p className="task-card-desc">{t.descriptions || 'No description provided.'}</p>
+                      
+                      <p className="task-card-desc"><label htmlFor="" style={{color:'black',fontWeight:'600'}}>Description - </label>{t.descriptions || 'No description provided.'}</p>
 
                       {isOverdue && (
                         <div style={{
@@ -258,7 +259,7 @@ export default function MyTasks() {
                       <div className="task-card-footer" style={{ marginBottom: '0.75rem' }}>
                         <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Assigned: {formatDate(t.assign_date)}</span>
                         {isCompleted ? (
-                          <span style={{ fontSize: '0.8rem', color: 'var(--success)', fontWeight: 600 }}>
+                          <span style={{ fontSize: '0.8rem',marginLeft:'7rem', color: 'var(--success)', fontWeight: 600 }}>
                             Completed: {formatDate(t.completed_date || t.updated_at || t.assign_date)}
                           </span>
                         ) : (

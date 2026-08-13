@@ -93,9 +93,9 @@ export default function EmployeeDashboard() {
                   <Badge variant={statusVariant(st)}>{st}</Badge>
                 </div>
                 <h4 className="task-card-title">{t.task_name}</h4>
-                <p className="task-card-desc">{t.descriptions}</p>
+                <p className="task-card-desc"><label htmlFor="" style={{color:'black',fontWeight:'600'}}>Description - </label>{t.descriptions}</p> 
                 {t.remarks && (
-                  <div style={{ marginTop: '0.5rem', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                  <div style={{ marginTop: '1rem', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
                     <strong> Your Remark:</strong> {t.remarks}
                   </div>
                 )}

@@ -1392,6 +1392,8 @@ app.get("/AdminTasks", (req, res) => {
             values.push(from, to);
         }
 
+        sql += "order by assign_date desc";
+
         db.query(sql, values, (err, result) => {
             if (err) {
                 let fallbackSql = `
@@ -1431,6 +1433,8 @@ app.get("/AdminTasks", (req, res) => {
                     fallbackSql += " AND assign_date BETWEEN ? AND ?";
                     fallbackValues.push(from, to);
                 }
+
+                fallbackSql +="order by assign_date desc";
                 db.query(fallbackSql, fallbackValues, (err2, result2) => {
                     if (err2) {
                         return res.status(500).json({ success: false, message: err2.message });

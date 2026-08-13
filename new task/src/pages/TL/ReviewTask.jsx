@@ -246,8 +246,8 @@ export default function ReviewTask({ task: propTask, open: propOpen, onClose: pr
                   Task: {task.task_name} | Deadline: {task.deadline ? formatDate(task.deadline) : 'N/A'}
                 </div>
                 {task.descriptions && (
-                  <p style={{ fontSize: '0.875rem', color: 'var(--text-light, #475569)', margin: '0.35rem 0 0 0', whiteSpace: 'pre-wrap' }}>
-                    {task.descriptions}
+                  <p style={{ fontSize: '0.875rem', color: 'var(--text-light, #475569)', margin: '1rem 0 0 0', whiteSpace: 'pre-wrap' }}>
+                    <label htmlFor="" style={{color:'black',fontWeight:'500'}}>Description - </label>{task.descriptions}
                   </p>
                 )}
               </div>
