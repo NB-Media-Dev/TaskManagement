@@ -4,18 +4,49 @@ import mysql from "mysql2";
 const app = express();
 app.disable('x-powered-by');
 
-const ALLOWED_ORIGINS = new Set([process.env.FRONTEND_URL || "http://localhost:5173","http://localhost:5174","http://localhost:5175", "https://yourdomain.com"]);
+const envOrigins = (process.env.ALLOWED_ORIGINS || process.env.FRONTEND_URL || "")
+  .split(",")
+  .map((o) => o.trim())
+  .filter(Boolean);
+
+const ALLOWED_ORIGINS = new Set([
+  "http://localhost:5173",
+  "http://localhost:5174",
+  "http://localhost:5175",
+  "http://127.0.0.1:5173",
+  "http://127.0.0.1:5174",
+  "http://127.0.0.1:5175",
+  "https://yourdomain.com",
+  ...envOrigins,
+]);
+
+const isLocalNetworkOrigin = (origin) => {
+  try {
+    const url = new URL(origin);
+    const hostname = url.hostname;
+    return (
+      hostname === "localhost" ||
+      hostname === "127.0.0.1" ||
+      /^192\.168\.\d{1,3}\.\d{1,3}$/.test(hostname) ||
+      /^10\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(hostname) ||
+      /^172\.(1[6-9]|2\d|3[0-1])\.\d{1,3}\.\d{1,3}$/.test(hostname) ||
+      hostname.endsWith(".local")
+    );
+  } catch {
+    return false;
+  }
+};
+
 app.use(cors({
     origin: function(origin, callback) {
-        if(!origin) return callback(null,true);
-        if (ALLOWED_ORIGINS.has(origin)) {
+        if(!origin) return callback(null, true);
+        if (ALLOWED_ORIGINS.has(origin) || isLocalNetworkOrigin(origin)) {
             return callback(null, true);
         }
         else{
             console.log(`CORS BLOCKED ORIGIN : ${origin}`);
             return callback(new Error('Not Allowed by cors'));
         }
-        
     },
     methods: ["GET", "POST", "PUT", "DELETE","OPTIONS"],
     credentials: true,

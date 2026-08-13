@@ -74,10 +74,13 @@ export default function Login() {
         toast.error(res.data.message || "Invalid login");
       }
     } catch(err) {
-      toast.error(
-        err.response?.data?.message ||
-        "Something went wrong"
-      );
+      if (err.response?.data?.message) {
+        toast.error(err.response.data.message);
+      } else if (!err.response || err.code === "ERR_NETWORK" || err.message?.toLowerCase().includes("network")) {
+        toast.error("Network Error: Unable to connect to backend server. Please verify your connection and check if the backend server is running.");
+      } else {
+        toast.error(err.message || "Something went wrong! Please try again.");
+      }
     } finally {
       setLoading(false);
     }

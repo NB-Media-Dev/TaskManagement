@@ -282,8 +282,8 @@ const filteredEmployees = sortedEmployees.filter((emp) => {
               }}
               className="form-input"
               style={{
-                flex: "1 1 150px",
-                minWidth: "130px",
+                // flex: "1 1 150px",
+                // minWidth: "130px",
                 maxWidth: "100%",
                 padding: "8px",
                 borderRadius: "6px",
@@ -299,8 +299,8 @@ const filteredEmployees = sortedEmployees.filter((emp) => {
                 onChange={(e) => setSelectedEmployee(e.target.value)}
                 className="form-input"
                 style={{
-                  flex: "1 1 150px",
-                  minWidth: "130px",
+                  // flex: "1 1 150px",
+                  // minWidth: "130px",
                   maxWidth: "100%",
                   padding: "8px",
                   borderRadius: "6px",
@@ -320,8 +320,8 @@ const filteredEmployees = sortedEmployees.filter((emp) => {
                 onChange={(e) => setSelectedTeam(e.target.value)}
                 className="form-input"
                 style={{
-                  flex: "1 1 150px",
-                  minWidth: "130px",
+                  // flex: "1 1 150px",
+                  // minWidth: "130px",
                   maxWidth: "100%",
                   padding: "8px",
                   borderRadius: "6px",
