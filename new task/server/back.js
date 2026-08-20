@@ -1,3 +1,4 @@
+import "dotenv/config";
 import express from "express";
 import cors from "cors";
 import mysql from "mysql2";
@@ -20,44 +21,42 @@ const ALLOWED_ORIGINS = new Set([
   ...envOrigins,
 ]);
 
-const isLocalNetworkOrigin = (origin) => {
-  try {
-    const url = new URL(origin);
-    const hostname = url.hostname;
-    return (
-      hostname === "localhost" ||
-      hostname === "127.0.0.1" ||
-      /^192\.168\.\d{1,3}\.\d{1,3}$/.test(hostname) ||
-      /^10\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(hostname) ||
-      /^172\.(1[6-9]|2\d|3[0-1])\.\d{1,3}\.\d{1,3}$/.test(hostname) ||
-      hostname.endsWith(".local")
-    );
-  } catch {
-    return false;
-  }
-};
-
 app.use(cors({
     origin: function(origin, callback) {
         if(!origin) return callback(null, true);
-        if (ALLOWED_ORIGINS.has(origin) || isLocalNetworkOrigin(origin)) {
+        if (ALLOWED_ORIGINS.has(origin) ) {
             return callback(null, true);
         }
-        else{
+         try {
+                const url = new URL(origin);
+                const hostname = url.hostname;
+                const isLocalNetwork = (
+                    hostname === "localhost" ||
+                    hostname === "127.0.0.1" ||
+                    /^192\.168\.\d{1,3}\.\d{1,3}$/.test(hostname) ||
+                    /^10\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(hostname) ||
+                    /^172\.(1[6-9]|2\d|3[0-1])\.\d{1,3}\.\d{1,3}$/.test(hostname) ||
+                    hostname.endsWith(".local")
+                );
+                 if (isLocalNetwork) {
+                return callback(null, true);
+                 }
+            } catch (err) {
+                console.error("Error evaluating hostname:", err);
+                return callback(err); 
+            }
             console.log(`CORS BLOCKED ORIGIN : ${origin}`);
             return callback(new Error('Not Allowed by cors'));
-        }
     },
     methods: ["GET", "POST", "PUT", "DELETE","OPTIONS"],
     credentials: true,
     allowedHeaders:["Content-Type" , "Authorization"]
 }));
 app.use(express.json());
-
-const db = mysql.createConnection({
+        const db = mysql.createConnection({
     host: process.env.DB_HOST || "localhost",
     user: process.env.DB_USER || "root",
-    password: process.env.DB_PASSWORD || "Deepak@8428",
+    password: process.env.DB_PASSWORD || "",
     database: process.env.DB_NAME || "react",
 });
 db.connect((err) => {
@@ -67,19 +66,8 @@ db.connect((err) => {
     else {
         console.log("MySQL Connected");
        
-        db.query("UPDATE attendance SET workhours = '00:00:00' WHERE workhours IS NULL OR workhours = '0h' OR workhours = ''", (updateErr) => {
-            if (updateErr) console.log("Row cleanup note:", updateErr.message);
-           
-            db.query("ALTER TABLE attendance MODIFY COLUMN workhours VARCHAR(50) DEFAULT '00:00:00'", (alterErr) => {
-                if (alterErr) {
-                    console.log("Column alter note:", alterErr.message);
-                } else {
-                    console.log("Successfully converted attendance workhours column to VARCHAR(50)");
-                }
-            });
+    }
         });
-
-        
         db.query("ALTER TABLE assign ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'Pending'", (assignErr) => {
             if (assignErr) console.log("Assign status note:", assignErr.message);
         });
@@ -161,17 +149,23 @@ db.connect((err) => {
                 { name: "created_at", spec: "DATETIME DEFAULT CURRENT_TIMESTAMP" }
             ];
 
+            const safeAddColumn = (col, useIfNotExists = false) => {
+                const safeName = db.escapeId(col.name);
+                const safeSpec = String(col.spec).replace(/[^a-zA-Z0-9_ (),=-]/g, '');
+                const clause = useIfNotExists ? "ADD COLUMN IF NOT EXISTS" : "ADD COLUMN";
+                return `ALTER TABLE notifications ${clause} ${safeName} ${safeSpec}`;
+            };
+
+            const addColumnFallback = (col) => {
+                db.query(safeAddColumn(col, false), () => {});
+            };
+
             notifColumns.forEach(col => {
-                db.query(`ALTER TABLE notifications ADD COLUMN IF NOT EXISTS ${col.name} ${col.spec}`, (colErr) => {
-                    if (colErr) {
-                        db.query(`ALTER TABLE notifications ADD COLUMN ${col.name} ${col.spec}`, (colErr2) => {
-                           
-                        });
-                    }
+                db.query(safeAddColumn(col, true), (colErr) => {
+                    if (colErr) addColumnFallback(col);
                 });
             });
 
-           
             db.query("ALTER TABLE notifications MODIFY COLUMN receiver_email VARCHAR(255) NULL DEFAULT NULL", (modErr) => {
                 if (modErr) console.log("receiver_email modify note:", modErr.message);
             });
@@ -179,15 +173,16 @@ db.connect((err) => {
                 if (modErr2) console.log("recipient_email modify note:", modErr2.message);
             });
 
+            db.query("DELETE FROM notifications WHERE LOWER(TRIM(recipient_email)) = 'tl' OR LOWER(TRIM(receiver_email)) = 'tl'", (cleanErr) => {
+                if (cleanErr) console.log("Legacy cleanup note:", cleanErr.message);
+            });
 
             db.query("SELECT COUNT(*) as count FROM notifications", (countErr, countRes) => {
-                if (!countErr && countRes && countRes[0].count === 0) {
+                if (!countErr && countRes?.[0]?.count === 0) {
                     sendNotification('Admin', 'System', 'Welcome to Task Management System', 'Notification system is active and ready.', 'SYSTEM');
                 }
             });
         });
-    }
-});
 
 function validateNameBackend(name, fieldName = "Name") {
     if (!name || String(name).trim() === '') {
@@ -205,7 +200,7 @@ function validateEmailBackend(email) {
         return "Email address is required.";
     }
     const trimmed = String(email).trim().toLowerCase();
-    const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const regex = /^[^\s@]+@[^\s@.]+\.[^\s@]+$/;
     if (!regex.test(trimmed)) {
         return "Please enter a valid email address.";
     }
@@ -217,12 +212,16 @@ function validatePasswordBackend(password) {
         return "Password is required.";
     }
     const str = String(password);
-    const passRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]).{8,}$/;
+    const passRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]).{8,}$/;
     if (!passRegex.test(str)) {
         return "Password must contain at least 8 characters, one uppercase letter, one lowercase letter, one number, and one special character.";
     }
     return null;
 }
+function handleDbError(res, err) {
+    return res.json({ success: false, message: err.message });
+}
+
 app.post("/create", (req, res) => {
     const { username, email, password, role } = req.body;
 
@@ -241,12 +240,7 @@ app.post("/create", (req, res) => {
     const proceedWithUserCreate = () => {
         const checkSql = "SELECT * FROM users WHERE LOWER(TRIM(u_email))=?";
         db.query(checkSql, [cleanEmail], (err, result) => {
-            if (err) {
-                return res.json({
-                    success: false,
-                    message: err.message
-                });
-            }
+            if (err) return handleDbError(res, err);
             if (result.length > 0) {
                 return res.json({
                     success: false,
@@ -264,12 +258,12 @@ app.post("/create", (req, res) => {
                     role
                 ],
                 (err, result) => {
-                    if (err) {
-                        return res.json({
-                            success: false,
-                            message: err.message
-                        });
+                    if (err) return handleDbError(res, err);
+                    // notifyCTOs("Admin", `New User Created: ${cleanUsername}`, `A new user "${cleanUsername}" (${cleanEmail}) with role "${role}" has registered.`, "USER_ADDED");
+                    if (role !== 'Admin' && role !== 'Cto') {
+                        notifyTLForRole(role, "Admin", `New Team Member Registered`, `New ${role} user "${cleanUsername}" (${cleanEmail}) registered.`, "EMPLOYEE_ADDED");
                     }
+                    sendNotification(cleanEmail, "Admin", `Welcome to Task Management System`, `Your account has been created with role "${role}".`, "USER_ADDED");
                     res.json({
                         success: true,
                         message: "Account created"
@@ -282,12 +276,7 @@ app.post("/create", (req, res) => {
     if (role === 'Employee') {
         const empCheckSql = "SELECT * FROM employee WHERE LOWER(TRIM(emp_email))=?";
         db.query(empCheckSql, [cleanEmail], (empErr, empResult) => {
-            if (empErr) {
-                return res.json({
-                    success: false,
-                    message: empErr.message
-                });
-            }
+            if (empErr) return handleDbError(res, empErr);
             if (empResult.length === 0) {
                 return res.json({
                     success: false,
@@ -361,6 +350,26 @@ app.post("/Login", (req,res)=>{
                     name:user.u_name,
                     email:user.u_email,
                     role:"Admin"
+                }
+            });
+
+        }
+        if(user.u_role==="Cto"){
+
+            if(role!=="Cto"){
+
+                return res.json({
+                    success:false,
+                    message:"Please select Cto login"
+                });
+
+            }
+            return res.json({
+                success:true,
+                user:{
+                    name:user.u_name,
+                    email:user.u_email,
+                    role:"Cto"
                 }
             });
 
@@ -547,39 +556,37 @@ function sendNotification(recipientEmail, senderRole, title, message, type, task
     });
 }
 
-function notifyTLForRole(empRole, senderRole, title, message, type, taskId = null) {
-    const roleVal = empRole || '';
+function getTLsByRole(roleVal, callback) {
+    const role = roleVal || '';
     const findTlSql = `
-        SELECT emp_email FROM employee 
+        SELECT emp_name, emp_email FROM employee 
         WHERE position = 'TL' AND (LOWER(emp_role) = LOWER(?) OR LOWER(previous_role) = LOWER(?))
     `;
-    db.query(findTlSql, [roleVal, roleVal], (err, rows) => {
+    db.query(findTlSql, [role, role], (err, rows) => {
         if (!err && rows && rows.length > 0) {
-            const sentEmails = new Set();
-            rows.forEach(r => {
-                if (r.emp_email && !sentEmails.has(r.emp_email)) {
-                    sentEmails.add(r.emp_email);
-                    sendNotification(r.emp_email, senderRole, title, message, type, taskId);
-                }
-            });
-        } else {
-            const fallbackSql = `
-                SELECT u_email FROM users WHERE u_role = 'TL' OR LOWER(u_role) = LOWER(?)
-            `;
-            db.query(fallbackSql, [roleVal], (err2, userRows) => {
-                if (!err2 && userRows && userRows.length > 0) {
-                    const sentEmails = new Set();
-                    userRows.forEach(u => {
-                        if (u.u_email && !sentEmails.has(u.u_email)) {
-                            sentEmails.add(u.u_email);
-                            sendNotification(u.u_email, senderRole, title, message, type, taskId);
-                        }
-                    });
-                } else {
-                    sendNotification('TL', senderRole, title, message, type, taskId);
-                }
-            });
+            return callback(null, rows.map(r => ({ email: r.emp_email, name: r.emp_name })));
         }
+        const fallbackSql = `
+            SELECT u_name, u_email FROM users WHERE (u_role = 'TL' OR position = 'TL') AND LOWER(u_role) = LOWER(?)
+        `;
+        db.query(fallbackSql, [role], (err2, userRows) => {
+            if (!err2 && userRows && userRows.length > 0) {
+                return callback(null, userRows.map(u => ({ email: u.u_email, name: u.u_name })));
+            }
+            return callback(null, []);
+        });
+    });
+}
+
+function notifyTLForRole(empRole, senderRole, title, message, type, taskId = null) {
+    getTLsByRole(empRole, (err, tls) => {
+        const sentEmails = new Set();
+        tls.forEach(tl => {
+            if (tl.email && !sentEmails.has(tl.email)) {
+                sentEmails.add(tl.email);
+                sendNotification(tl.email, senderRole, title, message, type, taskId);
+            }
+        });
     });
 }
 
@@ -599,100 +606,101 @@ function notifyAdmins(senderRole, title, message, type, taskId = null) {
     });
 }
 
+function notifyCTOs(senderRole, title, message, type, taskId = null) {
+    const findCtoSql = `
+        SELECT u_email FROM users WHERE LOWER(u_role) = 'cto'
+        UNION
+        SELECT emp_email AS u_email FROM employee WHERE LOWER(position) = 'cto' OR LOWER(emp_role) = 'cto'
+    `;
+    db.query(findCtoSql, (err, rows) => {
+        const sentEmails = new Set(['cto', 'Cto']);
+        sendNotification('Cto', senderRole, title, message, type, taskId);
+        if (!err && rows && rows.length > 0) {
+            rows.forEach(r => {
+                if (r.u_email && !sentEmails.has(r.u_email.toLowerCase())) {
+                    sentEmails.add(r.u_email.toLowerCase());
+                    sendNotification(r.u_email, senderRole, title, message, type, taskId);
+                }
+            });
+        }
+    });
+}
+
+function notifyTLsForOverdueTask(empName, taskName, taskRole, deadlineStr, sendIfNotExists) {
+    getTLsByRole(taskRole, (err, tls) => {
+        tls.forEach(tl => {
+            if (tl.email) {
+                const tlName = tl.name || 'Team Lead';
+                const tlTitle = `Overdue Alert: ${empName} - ${taskName}`;
+                const tlMsg = `Hi ${tlName}, task "${taskName}" assigned to ${empName} is overdue. Deadline was ${deadlineStr}.`;
+                sendIfNotExists(tl.email, 'System', tlTitle, tlMsg);
+            }
+        });
+    });
+}
+
+function processOverdueTaskRow(row, sendIfNotExists) {
+    const taskName = row.task_name || 'Task';
+    const assignTo = row.assign_to || '';
+    const taskRole = row.roles || row.team_name || 'General';
+    const rawDeadline = row.dline || row.deadline;
+    const deadlineStr = formatDateBackend(rawDeadline);
+
+    const empSearchSql = "SELECT emp_name, emp_email FROM employee WHERE emp_name = ? OR emp_email = ? OR CAST(emp_id AS CHAR) = ?";
+    db.query(empSearchSql, [assignTo, assignTo, assignTo], (eErr, eRows) => {
+        let empName = assignTo;
+        let empEmail = assignTo;
+
+        if (!eErr && eRows && eRows.length > 0) {
+            if (eRows[0].emp_name) empName = eRows[0].emp_name;
+            if (eRows[0].emp_email) empEmail = eRows[0].emp_email;
+        }
+
+        const empTitle = `Overdue Task Alert: ${taskName}`;
+        const empMsg = `Hi ${empName}, your task "${taskName}" is overdue. Deadline was ${deadlineStr}.`;
+        sendIfNotExists(empEmail, 'System', empTitle, empMsg);
+
+        notifyTLsForOverdueTask(empName, taskName, taskRole, deadlineStr, sendIfNotExists);
+    });
+}
+
+function sendOverdueIfNotExists(taskId, targetEmail, senderRole, title, message) {
+    if (!targetEmail) return;
+    const cleanTarget = String(targetEmail).trim().toLowerCase();
+    const checkSql = `
+        SELECT id FROM notifications 
+        WHERE type = 'TASK_OVERDUE' 
+          AND task_id = ? 
+          AND (LOWER(TRIM(recipient_email)) = ? OR LOWER(TRIM(receiver_email)) = ?)
+          AND DATE(created_at) = CURDATE()
+    `;
+    db.query(checkSql, [taskId, cleanTarget, cleanTarget], (cErr, cRows) => {
+        if (!cErr && (!cRows || cRows.length === 0)) {
+            sendNotification(targetEmail, senderRole || 'System', title, message, 'TASK_OVERDUE', taskId);
+        }
+    });
+}
+
 function checkAndCreateOverdueNotifications() {
     const overdueSql = `
-        SELECT 
-            assign_id,
-            task_name,
-            assign_to,
-            roles,
-            team_name,
-            DATE_FORMAT(deadline, '%Y-%m-%d') AS deadline_str,
-            IFNULL(status, 'Pending') AS status
-        FROM assign
-        WHERE deadline IS NOT NULL 
-          AND DATE(deadline) < CURDATE()
-          AND LOWER(IFNULL(status, '')) NOT LIKE '%complete%'
+        SELECT * FROM assign 
+        WHERE (status IS NULL OR LOWER(status) NOT LIKE '%complete%')
+          AND (
+            (dline IS NOT NULL AND dline != '' AND STR_TO_DATE(dline, '%Y-%m-%d') < CURDATE())
+            OR (deadline IS NOT NULL AND deadline != '' AND STR_TO_DATE(deadline, '%Y-%m-%d') < CURDATE())
+          )
     `;
 
-    db.query(overdueSql, (err, tasks) => {
-        if (err || !tasks || tasks.length === 0) return;
+    db.query(overdueSql, (err, rows) => {
+        if (err || !rows || rows.length === 0) return;
 
-        tasks.forEach((t) => {
-            const taskId = t.assign_id;
-            const taskName = t.task_name;
-            const assignTo = t.assign_to;
-            const taskRole = t.team_name || t.roles || 'General';
-            const deadlineStr = t.deadline_str || '';
-
+        rows.forEach(row => {
+            const taskId = row.assign_id || row.id;
             const sendIfNotExists = (targetEmail, senderRole, title, message) => {
-                if (!targetEmail) return;
-                const cleanTarget = String(targetEmail).trim().toLowerCase();
-                const checkSql = `
-                    SELECT id FROM notifications 
-                    WHERE type = 'TASK_OVERDUE' 
-                      AND task_id = ? 
-                      AND (LOWER(TRIM(recipient_email)) = ? OR LOWER(TRIM(receiver_email)) = ?)
-                      AND DATE(created_at) = CURDATE()
-                `;
-                db.query(checkSql, [taskId, cleanTarget, cleanTarget], (cErr, cRows) => {
-                    if (!cErr && (!cRows || cRows.length === 0)) {
-                        sendNotification(targetEmail, senderRole || 'System', title, message, 'TASK_OVERDUE', taskId);
-                    }
-                });
+                sendOverdueIfNotExists(taskId, targetEmail, senderRole, title, message);
             };
 
-          
-            const empSearchSql = "SELECT emp_name, emp_email FROM employee WHERE emp_name = ? OR emp_email = ? OR CAST(emp_id AS CHAR) = ?";
-            db.query(empSearchSql, [assignTo, assignTo, assignTo], (eErr, eRows) => {
-                let empName = assignTo;
-                let empEmail = assignTo;
-
-                if (!eErr && eRows && eRows.length > 0) {
-                    if (eRows[0].emp_name) empName = eRows[0].emp_name;
-                    if (eRows[0].emp_email) empEmail = eRows[0].emp_email;
-                }
-
-                const empTitle = `Overdue Task Alert: ${taskName}`;
-                const empMsg = `Hi ${empName}, your task "${taskName}" is overdue. Deadline was ${deadlineStr}.`;
-                sendIfNotExists(empEmail, 'System', empTitle, empMsg);
-
-                
-                const findTlSql = `
-                    SELECT emp_name, emp_email FROM employee 
-                    WHERE position = 'TL' AND (LOWER(emp_role) = LOWER(?) OR LOWER(previous_role) = LOWER(?))
-                `;
-                db.query(findTlSql, [taskRole, taskRole], (tlErr, tlRows) => {
-                    if (!tlErr && tlRows && tlRows.length > 0) {
-                        tlRows.forEach(r => {
-                            if (r.emp_email) {
-                                const tlName = r.emp_name || 'Team Lead';
-                                const tlTitle = `Overdue Alert: ${empName} - ${taskName}`;
-                                const tlMsg = `Hi ${tlName}, task "${taskName}" assigned to ${empName} is overdue. Deadline was ${deadlineStr}.`;
-                                sendIfNotExists(r.emp_email, 'System', tlTitle, tlMsg);
-                            }
-                        });
-                    } else {
-                        const fallbackSql = `SELECT u_name, u_email FROM users WHERE u_role = 'TL' OR LOWER(u_role) = LOWER(?)`;
-                        db.query(fallbackSql, [taskRole], (uErr, uRows) => {
-                            if (!uErr && uRows && uRows.length > 0) {
-                                uRows.forEach(u => {
-                                    if (u.u_email) {
-                                        const tlName = u.u_name || 'Team Lead';
-                                        const tlTitle = `Overdue Alert: ${empName} - ${taskName}`;
-                                        const tlMsg = `Hi ${tlName}, task "${taskName}" assigned to ${empName} is overdue. Deadline was ${deadlineStr}.`;
-                                        sendIfNotExists(u.u_email, 'System', tlTitle, tlMsg);
-                                    }
-                                });
-                            } else {
-                                const tlTitle = `Overdue Alert: ${empName} - ${taskName}`;
-                                const tlMsg = `Task "${taskName}" assigned to ${empName} is overdue. Deadline was ${deadlineStr}.`;
-                                sendIfNotExists('TL', 'System', tlTitle, tlMsg);
-                            }
-                        });
-                    }
-                });
-            });
+            processOverdueTaskRow(row, sendIfNotExists);
         });
     });
 }
@@ -705,16 +713,16 @@ function formatEmpId(val) {
     const upper = str.toUpperCase();
     if (upper.startsWith('EMP')) {
         const numPart = upper.replace(/^EMP-?/, '');
-        const n = parseInt(numPart, 10);
-        if (!isNaN(n)) {
+        const n = Number.parseInt(numPart, 10);
+        if (!Number.isNaN(n)) {
             const finalNum = n < 100 ? n + 100 : n;
             return `EMP-${String(finalNum).padStart(3, '0')}`;
         }
         return str;
     }
-    const match = str.match(/\d+/);
+    const match = /\d+/.exec(str);
     if (match) {
-        const n = parseInt(match[0], 10);
+        const n = Number.parseInt(match[0], 10);
         const finalNum = n < 100 ? n + 100 : n;
         return `EMP-${String(finalNum).padStart(3, '0')}`;
     }
@@ -731,10 +739,10 @@ app.get("/next-emp-id", (req, res) => {
         if (result && Array.isArray(result)) {
             result.forEach((row) => {
                 if (row.emp_id) {
-                    const match = String(row.emp_id).match(/\d+/);
+                    const match = /\d+/.exec(String(row.emp_id));
                     if (match) {
-                        const num = parseInt(match[0], 10);
-                        if (!isNaN(num) && num > maxNum) {
+                        const num = Number.parseInt(match[0], 10);
+                        if (!Number.isNaN(num) && num > maxNum) {
                             maxNum = num;
                         }
                     }
@@ -746,7 +754,30 @@ app.get("/next-emp-id", (req, res) => {
     });
 });
 
-app.post("/AddEmployee", (req, res) => {
+const getMaxEmpIdFromDB = async () => {
+    let maxNum = 100;
+    try {
+        const [idRes] = await db.promise().query("SELECT emp_id FROM employee");
+        if (Array.isArray(idRes)) {
+            idRes.forEach((row) => {
+                if (row.emp_id) {
+                    const match = /\d+/.exec(String(row.emp_id));
+                    if (match) {
+                        const num = Number.parseInt(match[0], 10);
+                        if (!Number.isNaN(num) && num > maxNum) {
+                            maxNum = num;
+                        }
+                    }
+                }
+            });
+        }
+    } catch {
+        // fallback maxNum
+    }
+    return maxNum;
+};
+
+app.post("/AddEmployee", async (req, res) => {
     const { id, name, email, phone, gender, role, password } = req.body;
 
     const nameErr = validateNameBackend(name, "Employee Name");
@@ -761,123 +792,61 @@ app.post("/AddEmployee", (req, res) => {
     const cleanEmail = String(email).trim().toLowerCase();
     const cleanName = String(name).trim();
 
-    const checkEmailSql = "SELECT * FROM employee WHERE LOWER(TRIM(emp_email)) = ?";
-    db.query(checkEmailSql, [cleanEmail], (empErr, empRes) => {
-        if (empErr) {
-            return res.json({
-                success: false,
-                message: empErr.message
-            });
-        }
-
-        if (empRes.length > 0) {
+    try {
+        const [empRes] = await db.promise().query("SELECT * FROM employee WHERE LOWER(TRIM(emp_email)) = ?", [cleanEmail]);
+        if (empRes && empRes.length > 0) {
             return res.json({
                 success: false,
                 message: "An employee with this email address already exists."
             });
         }
 
-        const getNextIdSql = "SELECT emp_id FROM employee";
-        db.query(getNextIdSql, (idErr, idRes) => {
-            let maxNum = 100;
-            if (!idErr && idRes && Array.isArray(idRes)) {
-                idRes.forEach((row) => {
-                    if (row.emp_id) {
-                        const match = String(row.emp_id).match(/\d+/);
-                        if (match) {
-                            const num = parseInt(match[0], 10);
-                            if (!isNaN(num) && num > maxNum) {
-                                maxNum = num;
-                            }
-                        }
-                    }
+        const maxNum = await getMaxEmpIdFromDB();
+        const targetId = formatEmpId(id || (maxNum + 1));
+        const insertSql = `
+            INSERT INTO employee
+            (
+                emp_id,
+                emp_name,
+                emp_email,
+                emp_phone,
+                emp_gender,
+                emp_role,
+                position
+            )
+            VALUES
+            (?,?,?,?,?,?,'Employee')
+        `;
+
+        const empRole = role || "Employee";
+
+        try {
+            await db.promise().query(insertSql, [targetId, cleanName, cleanEmail, phone, gender, empRole]);
+        } catch (err) {
+            const isDuplicate = err.message.includes("Duplicate") || err.code === "ER_DUP_ENTRY";
+            if (!isDuplicate) {
+                return res.json({ success: false, message: err.message });
+            }
+            if (err.message.includes("emp_email") || err.message.toLowerCase().includes("email")) {
+                return res.json({
+                    success: false,
+                    message: "An employee with this email address already exists."
                 });
             }
+            const fallbackId = formatEmpId(maxNum + 1);
+            await db.promise().query(insertSql, [fallbackId, cleanName, cleanEmail, phone, gender, empRole]);
+        }
 
-            const targetId = formatEmpId(id || (maxNum + 1));
+        const userPassword = password || phone || "123456";
+        syncUserCredentials(cleanName, cleanEmail, userPassword, empRole);
+        // notifyCTOs("Admin", `New User Added: ${cleanName}`, `Admin added new ${empRole} employee "${cleanName}" (${cleanEmail}).`, "USER_ADDED");
+        notifyTLForRole(empRole, "Admin", `New ${role || "Team"} Member Added`, `Admin added new ${empRole} employee "${cleanName}" (${cleanEmail}) to your team.`, "EMPLOYEE_ADDED");
+        sendNotification(cleanEmail, "Admin", `Welcome to Task Management System`, `You have been added as a ${empRole} employee by Admin.`, "EMPLOYEE_ADDED");
 
-            const insertSql = `
-                INSERT INTO employee
-                (
-                    emp_id,
-                    emp_name,
-                    emp_email,
-                    emp_phone,
-                    emp_gender,
-                    emp_role,
-                    position
-                )
-                VALUES
-                (?,?,?,?,?,?,'Employee')
-            `;
-
-            db.query(
-                insertSql,
-                [
-                    targetId,
-                    cleanName,
-                    cleanEmail,
-                    phone,
-                    gender,
-                    role || "Employee"
-                ],
-                (err, result) => {
-                    if (err) {
-                        if (err.message.includes("Duplicate") || err.code === "ER_DUP_ENTRY") {
-                            if (err.message.includes("emp_email") || err.message.toLowerCase().includes("email")) {
-                                return res.json({
-                                    success: false,
-                                    message: "An employee with this email address already exists."
-                                });
-                            }
-                            const fallbackId = formatEmpId(maxNum + 1);
-                            db.query(insertSql, [fallbackId, cleanName, cleanEmail, phone, gender, role || "Employee"], (err2) => {
-                                if (err2) return res.json({ success: false, message: err2.message });
-                                const userPassword = password || phone || "123456";
-                                syncUserCredentials(cleanName, cleanEmail, userPassword, role || "Employee");
-                                notifyTLForRole(role || "Employee", "Admin", `New ${role || "Team"} Member Added`, `Admin added new ${role || "Employee"} employee "${cleanName}" (${cleanEmail}) to your team.`, "EMPLOYEE_ADDED");
-                                sendNotification(cleanEmail, "Admin", `Welcome to Task Management System`, `You have been added as a ${role || "Employee"} employee by Admin.`, "EMPLOYEE_ADDED");
-                                return res.json({ success: true, message: "Employee Added successfully" });
-                            });
-                            return;
-                        }
-                        return res.json({
-                            success: false,
-                            message: err.message
-                        });
-                    }
-
-                    const userPassword = password || phone || "123456";
-                    syncUserCredentials(
-                        cleanName,
-                        cleanEmail,
-                        userPassword,
-                        role || "Employee"
-                    );
-
-                    notifyTLForRole(
-                        role || "Employee",
-                        "Admin",
-                        `New ${role || "Team"} Member Added`,
-                        `Admin added new ${role || "Employee"} employee "${cleanName}" (${cleanEmail}) to your team.`,
-                        "EMPLOYEE_ADDED"
-                    );
-                    sendNotification(
-                        cleanEmail,
-                        "Admin",
-                        `Welcome to Task Management System`,
-                        `You have been added as a ${role || "Employee"} employee by Admin.`,
-                        "EMPLOYEE_ADDED"
-                    );
-
-                    res.json({
-                        success: true,
-                        message: "Employee Added successfully"
-                    });
-                }
-            );
-        });
-    });
+        return res.json({ success: true, message: "Employee Added successfully" });
+    } catch (error) {
+        return res.json({ success: false, message: error.message });
+    }
 });
 app.get("/AdminEmployee", (req, res) => {
     const { id } = req.query;
@@ -976,6 +945,31 @@ app.delete("/DeleteEmployee/:id", (req, res) => {
     });
 });
 
+function syncUserForEmployeeUpdate(oldEmail, updatedEmail, updatedName, updatedRole, newPassword, updatedPhone) {
+    db.query("SELECT * FROM users WHERE u_email=? OR u_email=?", [oldEmail, updatedEmail], (uErr, uRows) => {
+        if (!uErr && uRows && uRows.length > 0) {
+            let userUpdateSql = "UPDATE users SET u_name=?, u_email=?, u_role=?";
+            let userParams = [updatedName, updatedEmail, updatedRole];
+            if (newPassword) {
+                userUpdateSql += ", u_password=?";
+                userParams.push(newPassword);
+            }
+            userUpdateSql += " WHERE u_email=? OR u_email=?";
+            userParams.push(oldEmail, updatedEmail);
+            db.query(userUpdateSql, userParams, (updateUserErr) => {
+                if (updateUserErr) console.log("User table update note:", updateUserErr.message);
+            });
+        } else {
+            syncUserCredentials(
+                updatedName,
+                updatedEmail,
+                newPassword || updatedPhone || "123456",
+                updatedRole
+            );
+        }
+    });
+}
+
 app.put("/updateEmployee/:id", (req, res) => {
     const { id } = req.params;
     if (!id || id === 'undefined' || id === 'null') {
@@ -998,58 +992,39 @@ app.put("/updateEmployee/:id", (req, res) => {
 
     db.query(oldRoleSql, [empIdStr], (oldErr, oldResult) => {
         if (oldErr) {
-            return res.json({
-                success: false,
-                message: oldErr.message
-            });
+            return res.json({ success: false, message: oldErr.message });
         }
 
         if (!oldResult || oldResult.length === 0) {
-            return res.json({
-                success: false,
-                message: "Employee not found"
-            });
+            return res.json({ success: false, message: "Employee not found" });
         }
 
         const currentEmp = oldResult[0];
-        const updatedName = (name !== undefined && name !== null && name !== "") ? name : (currentEmp.emp_name || "");
-        const updatedEmail = (email !== undefined && email !== null && email !== "") ? email : (currentEmp.emp_email || "");
-        const updatedPhone = (phone !== undefined && phone !== null) ? phone : (currentEmp.emp_phone || "");
-        const updatedGender = (gender !== undefined && gender !== null) ? gender : (currentEmp.emp_gender || "");
-        const updatedRole = (role !== undefined && role !== null && role !== "") ? role : (currentEmp.emp_role || "Employee");
-        const updatedPosition = (position !== undefined && position !== null && position !== "") ? position : (currentEmp.position || "Employee");
+        const getField = (val, fallback) => (val !== undefined && val !== null && val !== "") ? val : fallback;
+
+        const oldName = currentEmp.emp_name;
+        const updatedName = getField(name, currentEmp.emp_name || "");
+        const updatedEmail = getField(email, currentEmp.emp_email || "");
+        const updatedPhone = getField(phone, currentEmp.emp_phone || "");
+        const updatedGender = getField(gender, currentEmp.emp_gender || "");
+        const updatedRole = getField(role, currentEmp.emp_role || "Employee");
+        const updatedPosition = getField(position, currentEmp.position || "Employee");
         const updatedDesignation = (designation !== undefined && designation !== null) ? designation : (currentEmp.designation || null);
         const oldRole = currentEmp.emp_role || "Employee";
 
         const updateSql = `
             UPDATE employee
-            SET
-                emp_name=?,
-                emp_email=?,
-                emp_phone=?,
-                emp_gender=?,
-                emp_role=?
+            SET emp_name=?, emp_email=?, emp_phone=?, emp_gender=?, emp_role=?
             WHERE CAST(emp_id AS CHAR)=?
         `;
 
-        const updateParams = [
-            updatedName,
-            updatedEmail,
-            updatedPhone,
-            updatedGender,
-            updatedRole,
-            empIdStr
-        ];
+        const updateParams = [updatedName, updatedEmail, updatedPhone, updatedGender, updatedRole, empIdStr];
 
         db.query(updateSql, updateParams, (err, result) => {
             if (err) {
-                return res.json({
-                    success: false,
-                    message: err.message
-                });
+                return res.json({ success: false, message: err.message });
             }
 
-            
             db.query(
                 "UPDATE employee SET position=?, designation=?, previous_role=? WHERE CAST(emp_id AS CHAR)=?",
                 [updatedPosition, updatedDesignation, oldRole, empIdStr],
@@ -1058,44 +1033,40 @@ app.put("/updateEmployee/:id", (req, res) => {
                 }
             );
 
+             if (oldName && oldName !== updatedName) {
+                const updateAssignSql = "UPDATE assign SET assign_to = ? WHERE assign_to = ?";
+                db.query(updateAssignSql, [updatedName, oldName], (assignTableErr) => {
+                    if (assignTableErr) {
+                        console.log("Failed to sync assign table names:", assignTableErr.message);
+                    } else {
+                        console.log(`Successfully updated assigned tasks from "${oldName}" to "${updatedName}"`);
+                    }
+                });
+            }
+
             const oldEmail = currentEmp.emp_email;
             const newPassword = (password && String(password).trim() !== "") ? String(password).trim() : null;
 
-            db.query("SELECT * FROM users WHERE u_email=? OR u_email=?", [oldEmail, updatedEmail], (uErr, uRows) => {
-                if (!uErr && uRows && uRows.length > 0) {
-                    let userUpdateSql = "UPDATE users SET u_name=?, u_email=?, u_role=?";
-                    let userParams = [updatedName, updatedEmail, updatedRole];
-                    if (newPassword) {
-                        userUpdateSql += ", u_password=?";
-                        userParams.push(newPassword);
-                    }
-                    userUpdateSql += " WHERE u_email=? OR u_email=?";
-                    userParams.push(oldEmail, updatedEmail);
-                    db.query(userUpdateSql, userParams, (updateUserErr) => {
-                        if (updateUserErr) console.log("User table update note:", updateUserErr.message);
-                    });
-                } else {
-                    syncUserCredentials(
-                        updatedName,
-                        updatedEmail,
-                        newPassword || updatedPhone || "123456",
-                        updatedRole
-                    );
-                }
-            });
+            syncUserForEmployeeUpdate(oldEmail, updatedEmail, updatedName, updatedRole, newPassword, updatedPhone);
 
-            sendNotification(
-                updatedEmail,
-                "Admin",
-                `Account Details Updated`,
-                `Your employee profile and role (${updatedRole}) were updated by Admin.`,
-                "ROLE_UPDATED"
-            );
+            // sendNotification(
+            //     updatedEmail,
+            //     "Admin",
+            //     `Account Details Updated`,
+            //     `Your employee profile and role (${updatedRole}) were updated by Admin.`,
+            //     "ROLE_UPDATED"
+            // );
+             if (typeof sendNotification === 'function') {
+                sendNotification(
+                    updatedEmail,
+                    "Admin",
+                    `Account Details Updated`,
+                    `Your employee profile and role (${updatedRole}) were updated by Admin.`,
+                    "ROLE_UPDATED"
+                );
+            }
 
-            res.json({
-                success: true,
-                message: "Employee updated successfully"
-            });
+            res.json({ success: true, message: "Employee updated successfully" });
         });
     });
 });
@@ -1104,7 +1075,6 @@ app.put("/updateEmployee/:id", (req, res) => {
 app.put("/MakeTL/:id", (req, res) => {
     const { id } = req.params;
 
-   
     const getEmployeeSql = `
         SELECT emp_role, emp_email
         FROM employee
@@ -1130,7 +1100,6 @@ app.put("/MakeTL/:id", (req, res) => {
         const team = empResult[0].emp_role;
         const targetEmail = empResult[0].emp_email;
 
-       
         const checkTlSql = `
             SELECT emp_name
             FROM employee
@@ -1155,7 +1124,6 @@ app.put("/MakeTL/:id", (req, res) => {
                 });
             }
 
-            
             const promoteSql = `
                 UPDATE employee
                 SET previous_role = position,
@@ -1192,7 +1160,7 @@ app.put("/UndoTL/:id",(req,res)=>{
 
     const getEmpSql = "SELECT emp_email FROM employee WHERE emp_id = ?";
     db.query(getEmpSql, [id], (eErr, eRows) => {
-        const targetEmail = (!eErr && eRows && eRows[0]) ? eRows[0].emp_email : null;
+        const targetEmail = eRows?.[0]?.emp_email || null;
 
         const sql=`
             UPDATE employee
@@ -1266,6 +1234,13 @@ app.post("/ChangePassword", (req, res) => {
                 message: "User not found"
             });
         }
+
+        const userRoleSql = "SELECT u_name, u_role FROM users WHERE LOWER(TRIM(u_email))=LOWER(TRIM(?)) UNION SELECT emp_name AS u_name, IFNULL(position, emp_role) AS u_role FROM employee WHERE LOWER(TRIM(emp_email))=LOWER(TRIM(?))";
+        db.query(userRoleSql, [email, email], (rErr, rRows) => {
+            const uName = rRows?.[0]?.u_name || email;
+            const uRole = rRows?.[0]?.u_role || "User";
+            notifyAdmins("System", `Password Changed: ${uName}`, `User "${uName}" (${email}, Role: ${uRole}) changed their password.`, "PASSWORD_CHANGED");
+        });
 
         res.json({
             success: true,
@@ -1515,8 +1490,47 @@ app.get("/AdminTasks", (req, res) => {
 });
 
 
+function notifyTaskUpdate({taskData, assignedTo, task_name, newStatus, tl_reply, daily_update, newRemarks, sender_role}) {
+    const taskRole = taskData?.team_name || taskData?.roles || "General";
+    const taskTitle = task_name || taskData?.task_name || "Task";
+    const updatedStatus = newStatus;
+    const isTlUpdate = sender_role === 'TL' || (tl_reply !== undefined && tl_reply !== null && tl_reply !== "" && tl_reply !== taskData?.tl_reply);
+
+    if (isTlUpdate) {
+        notifyCTOs(
+            "TL",
+            `TL Task Review: ${taskTitle}`,
+            `TL reviewed/updated task "${taskTitle}" assigned to ${assignedTo}. Status: "${updatedStatus}". TL Reply: "${tl_reply || 'N/A'}"`,
+            "TASK_UPDATED_BY_TL",
+            taskData?.assign_id
+        );
+
+        let empEmail = assignedTo;
+        db.query("SELECT emp_email FROM employee WHERE emp_name = ? OR emp_email = ? OR CAST(emp_id AS CHAR) = ?", [assignedTo, assignedTo, assignedTo], (eErr, eRows) => {
+            if (!eErr && eRows?.[0]?.emp_email) empEmail = eRows[0].emp_email;
+            sendNotification(
+                empEmail,
+                "TL",
+                `TL Reviewed Task: ${taskTitle}`,
+                `Your Team Lead updated task "${taskTitle}" status to "${updatedStatus}". Reply: "${tl_reply || 'N/A'}"`,
+                "TASK_REVIEWED_BY_TL",
+                taskData?.assign_id
+            );
+        });
+    } else {
+        notifyTLForRole(
+            taskRole,
+            "Employee",
+            `Task Update from ${assignedTo}`,
+            `${assignedTo} updated task "${taskTitle}" status to "${updatedStatus}". Work update: "${daily_update || newRemarks || "Updated"}"`,
+            "TASK_UPDATED_BY_EMPLOYEE",
+            taskData?.assign_id
+        );
+    }
+}
+
 app.post("/UpdateTaskStatus", (req, res) => {
-    const { assign_id, task_name, assign_to, status, remarks, daily_update, tl_reply, performance } = req.body;
+    const { assign_id, task_name, assign_to, status, remarks, daily_update, tl_reply, performance, sender_role } = req.body;
 
     if (status) {
         const allowedStatuses = ["pending", "in progress", "incomplete", "completed"];
@@ -1528,6 +1542,48 @@ app.post("/UpdateTaskStatus", (req, res) => {
         }
     }
 
+    const newStatus = status || "Pending";
+    const newRemarks = remarks || "";
+    const isCompleted = newStatus.toLowerCase().includes("complete");
+
+    let setFields = ["status=?", "remarks=?", `completed_date=${isCompleted ? "NOW()" : "NULL"}`];
+    let params = [newStatus, newRemarks];
+
+    if (daily_update !== undefined) {
+        setFields.push("daily_update=?");
+        params.push(daily_update);
+    }
+    if (tl_reply !== undefined) {
+        setFields.push("tl_reply=?");
+        params.push(tl_reply);
+    }
+    if (performance !== undefined) {
+        setFields.push("performance=?");
+        params.push(performance);
+    }
+
+    const condition = assign_id ? "assign_id=?" : "task_name=? AND assign_to=?";
+    const values = assign_id ? [assign_id] : [task_name, assign_to];
+
+    const fetchTaskSql = `SELECT * FROM assign WHERE ${condition}`;
+    db.query(fetchTaskSql, values, (taskErr, taskRows) => {
+        const taskData = (!taskErr && taskRows && taskRows.length > 0) ? taskRows[0] : null;
+        const sql = `UPDATE assign SET ${setFields.join(", ")} WHERE ${condition}`;
+
+        db.query(sql, [...params, ...values], (err, result) => {
+            if (err) return res.json({ success: false, message: err.message });
+            if (result.affectedRows > 0) {
+                const assignedTo = assign_to || taskData?.assign_to || "Employee";
+                notifyTaskUpdate({taskData, assignedTo, task_name, newStatus, tl_reply, daily_update, newRemarks, sender_role});
+                return res.json({ success: true, message: "Task status updated successfully" });
+            }
+            return res.json({ success: false, message: "Task not found" });
+        });
+    });
+});
+
+app.put("/updateTask", (req, res) => {
+    const { assign_id, task_name, assign_to, status, remarks, daily_update, tl_reply, performance, sender_role } = req.body;
     const newStatus = status || "Pending";
     const newRemarks = remarks || "";
     const isCompleted = newStatus.toLowerCase().includes("complete");
@@ -1568,40 +1624,8 @@ app.post("/UpdateTaskStatus", (req, res) => {
                 }
 
                 if(result.affectedRows > 0){
-                    const taskRole = taskData?.team_name || taskData?.roles || "General";
                     const assignedTo = assign_to || taskData?.assign_to || "Employee";
-                    const taskTitle = task_name || taskData?.task_name || "Task";
-                    const updatedStatus = newStatus;
-
-                    if (tl_reply !== undefined && tl_reply !== null && tl_reply !== "") {
-                        notifyAdmins(
-                            "TL",
-                            `TL Task Review: ${taskTitle}`,
-                            `TL reviewed/updated task "${taskTitle}" assigned to ${assignedTo}. Status: "${updatedStatus}". TL Reply: "${tl_reply}"`,
-                            "TASK_UPDATED_BY_TL"
-                        );
-
-                        let empEmail = assignedTo;
-                        db.query("SELECT emp_email FROM employee WHERE emp_name = ? OR emp_email = ?", [assignedTo, assignedTo], (eErr, eRows) => {
-                            if (!eErr && eRows && eRows.length > 0 && eRows[0].emp_email) empEmail = eRows[0].emp_email;
-                            sendNotification(
-                                empEmail,
-                                "TL",
-                                `TL Reviewed Task: ${taskTitle}`,
-                                `Your Team Lead updated task "${taskTitle}" status to "${updatedStatus}". Reply: "${tl_reply}"`,
-                                "TASK_REVIEWED_BY_TL"
-                            );
-                        });
-                    } else {
-                        notifyTLForRole(
-                            taskRole,
-                            "Employee",
-                            `Task Update from ${assignedTo}`,
-                            `${assignedTo} updated task "${taskTitle}" status to "${updatedStatus}". Work update: "${daily_update || newRemarks || "Updated"}"`,
-                            "TASK_UPDATED_BY_EMPLOYEE"
-                        );
-                    }
-
+                    notifyTaskUpdate({taskData, assignedTo, task_name, newStatus, tl_reply, daily_update, newRemarks, sender_role});
                     return res.json({
                         success:true,
                         message:"Task status updated successfully"
@@ -1639,15 +1663,78 @@ app.post("/UpdateTaskStatus", (req, res) => {
 });
 
 
-app.get("/notifications/:email", (req, res) => {
-    const { email } = req.params;
-    if (!email) return res.json({ success: false, message: "Email required" });
+function parseNotificationUserData(lookupRows, cleanEmail) {
+    const row = lookupRows?.[0];
+    const isUserAdmin = cleanEmail.includes('admin') || cleanEmail === 'admin' || row?.u_role === 'Admin';
+    const isUserCTO = cleanEmail.includes('cto') || cleanEmail === 'cto' || row?.u_role?.toLowerCase() === 'cto' || row?.position?.toLowerCase() === 'cto';
+    const isUserTL = cleanEmail === 'tl' || row?.position === 'TL' || row?.u_role === 'TL';
+    const userEmpEmail = row?.emp_email?.trim().toLowerCase() || row?.u_email?.trim().toLowerCase() || cleanEmail;
+    const userEmpName = row?.emp_name?.trim().toLowerCase() || row?.u_name?.trim().toLowerCase() || cleanEmail;
 
-    checkAndCreateOverdueNotifications();
+    return { isUserAdmin, isUserCTO, isUserTL, userEmpEmail, userEmpName };
+}
 
-    const cleanEmail = String(email).trim().toLowerCase();
+function fetchNotificationResults(res, finalAdmin, finalCTO, finalTL, targetEmail, targetName) {
+    let whereConditions = [];
+    let params = [];
 
-   
+    if (finalAdmin) {
+        whereConditions.push(`(
+            LOWER(TRIM(IFNULL(recipient_email, ''))) IN ('admin', ?)
+            OR LOWER(TRIM(IFNULL(receiver_email, ''))) IN ('admin', ?)
+            OR (sender_role = 'TL' AND type IN ('TASK_UPDATED_BY_TL', 'TL_REVIEW', 'EMPLOYEE_UPDATE'))
+            OR type IN ('SYSTEM', 'PASSWORD_CHANGED')
+        )`);
+        params.push(targetEmail, targetEmail);
+    } else if (finalCTO) {
+        whereConditions.push(`(
+            LOWER(TRIM(IFNULL(recipient_email, ''))) IN ('cto', ?)
+            OR LOWER(TRIM(IFNULL(receiver_email, ''))) IN ('cto', ?)
+            OR type IN ('USER_ADDED', 'TASK_UPDATED_BY_TL')
+        )`);
+        params.push(targetEmail, targetEmail);
+    } else {
+        whereConditions.push(`(
+            LOWER(TRIM(IFNULL(recipient_email, ''))) IN (?, ?)
+            OR LOWER(TRIM(IFNULL(receiver_email, ''))) IN (?, ?)
+        )`);
+        params.push(targetEmail, targetName, targetEmail, targetName);
+    }
+
+    const fetchSql = `
+        SELECT 
+            id,
+            COALESCE(recipient_email, receiver_email, 'Admin') AS recipient_email,
+            receiver_email,
+            sender_role,
+            title,
+            message,
+            type,
+            task_id,
+            is_read,
+            DATE_FORMAT(created_at, '%Y-%m-%d %H:%i:%s') AS created_at
+        FROM notifications 
+        WHERE ${whereConditions.join(" AND ")}
+        ORDER BY created_at DESC LIMIT 50
+    `;
+
+    db.query(fetchSql, params, (errNotif, results) => {
+        if (errNotif) {
+            return res.json({ success: false, message: errNotif.message });
+        }
+
+        if (!results || results.length === 0) {
+            return res.json({
+                success: true,
+                data: []
+            });
+        }
+
+        return res.json({ success: true, data: results });
+    });
+}
+
+function getUserNotificationDetails(cleanEmail, callback) {
     const lookupSql = `
         SELECT u.u_role, u.u_name, u.u_email, e.position, e.emp_role, e.emp_name, e.emp_email
         FROM users u
@@ -1656,99 +1743,35 @@ app.get("/notifications/:email", (req, res) => {
     `;
 
     db.query(lookupSql, [cleanEmail, cleanEmail, cleanEmail], (lookupErr, lookupRows) => {
-        let isUserAdmin = cleanEmail.includes('admin') || cleanEmail === 'admin';
-        let isUserTL = cleanEmail === 'tl';
-        let userEmpEmail = cleanEmail;
-        let userEmpName = cleanEmail;
+        let { isUserAdmin, isUserCTO, isUserTL, userEmpEmail, userEmpName } = parseNotificationUserData(lookupErr ? null : lookupRows, cleanEmail);
 
-        if (!lookupErr && lookupRows && lookupRows.length > 0) {
-            const row = lookupRows[0];
-            if (row.u_role === 'Admin') isUserAdmin = true;
-            if (row.position === 'TL' || row.u_role === 'TL') isUserTL = true;
-            if (row.emp_email) userEmpEmail = row.emp_email.trim().toLowerCase();
-            if (row.u_email && !userEmpEmail) userEmpEmail = row.u_email.trim().toLowerCase();
-            if (row.emp_name) userEmpName = row.emp_name.trim().toLowerCase();
-            if (row.u_name && !userEmpName) userEmpName = row.u_name.trim().toLowerCase();
-        }
-
-        const proceedWithQuery = (finalAdmin, finalTL, targetEmail, targetName) => {
-            let whereConditions = [];
-            let params = [];
-
-            if (finalAdmin) {
-                
-                whereConditions.push(`(
-                    LOWER(TRIM(IFNULL(recipient_email, ''))) IN ('admin', ?)
-                    OR LOWER(TRIM(IFNULL(receiver_email, ''))) IN ('admin', ?)
-                    OR (sender_role = 'TL' AND type IN ('TASK_UPDATED_BY_TL', 'TL_REVIEW', 'EMPLOYEE_UPDATE'))
-                    OR type = 'SYSTEM'
-                )`);
-                params.push(targetEmail, targetEmail);
-            } else if (finalTL) {
-                // TL ONLY sees notifications targeted at TL or TL's email, or task updates from employees, or new employee added notifications
-                whereConditions.push(`(
-                    LOWER(TRIM(IFNULL(recipient_email, ''))) IN ('tl', ?)
-                    OR LOWER(TRIM(IFNULL(receiver_email, ''))) IN ('tl', ?)
-                    OR (sender_role = 'Employee' AND type = 'TASK_UPDATED_BY_EMPLOYEE')
-                    OR type = 'EMPLOYEE_ADDED'
-                )`);
-                params.push(targetEmail, targetEmail);
-            } else {
-                // Employee / Tester / Developer / etc. ONLY sees notifications targeted at their specific email or name
-                whereConditions.push(`(
-                    LOWER(TRIM(IFNULL(recipient_email, ''))) IN (?, ?)
-                    OR LOWER(TRIM(IFNULL(receiver_email, ''))) IN (?, ?)
-                )`);
-                params.push(targetEmail, targetName, targetEmail, targetName);
-            }
-
-            const fetchSql = `
-                SELECT 
-                    id,
-                    COALESCE(recipient_email, receiver_email, 'Admin') AS recipient_email,
-                    receiver_email,
-                    sender_role,
-                    title,
-                    message,
-                    type,
-                    task_id,
-                    is_read,
-                    DATE_FORMAT(created_at, '%Y-%m-%d %H:%i:%s') AS created_at
-                FROM notifications 
-                WHERE ${whereConditions.join(" AND ")}
-                ORDER BY created_at DESC LIMIT 50
-            `;
-
-            db.query(fetchSql, params, (errNotif, results) => {
-                if (errNotif) {
-                    return res.json({ success: false, message: errNotif.message });
-                }
-
-                if (!results || results.length === 0) {
-                    return res.json({
-                        success: true,
-                        data: []
-                    });
-                }
-
-                return res.json({ success: true, data: results });
-            });
-        };
-
-        if (!isUserAdmin && !isUserTL && (!lookupRows || lookupRows.length === 0)) {
+        if (!isUserAdmin && !isUserCTO && !isUserTL && (!lookupRows || lookupRows.length === 0)) {
             const empFallbackSql = "SELECT emp_name, emp_email, position FROM employee WHERE LOWER(TRIM(emp_email)) = ? OR LOWER(TRIM(emp_name)) = ?";
             db.query(empFallbackSql, [cleanEmail, cleanEmail], (eErr, eRows) => {
                 if (!eErr && eRows && eRows.length > 0) {
                     const eRow = eRows[0];
                     if (eRow.position === 'TL') isUserTL = true;
+                    if (eRow.position === 'CTO') isUserCTO = true;
                     if (eRow.emp_email) userEmpEmail = eRow.emp_email.trim().toLowerCase();
                     if (eRow.emp_name) userEmpName = eRow.emp_name.trim().toLowerCase();
                 }
-                proceedWithQuery(isUserAdmin, isUserTL, userEmpEmail, userEmpName);
+                callback({ isUserAdmin, isUserCTO, isUserTL, userEmpEmail, userEmpName });
             });
         } else {
-            proceedWithQuery(isUserAdmin, isUserTL, userEmpEmail, userEmpName);
+            callback({ isUserAdmin, isUserCTO, isUserTL, userEmpEmail, userEmpName });
         }
+    });
+}
+
+app.get("/notifications/:email", (req, res) => {
+    const { email } = req.params;
+    if (!email) return res.json({ success: false, message: "Email required" });
+
+    checkAndCreateOverdueNotifications();
+
+    const cleanEmail = String(email).trim().toLowerCase();
+    getUserNotificationDetails(cleanEmail, ({ isUserAdmin, isUserCTO, isUserTL, userEmpEmail, userEmpName }) => {
+        fetchNotificationResults(res, isUserAdmin, isUserCTO, isUserTL, userEmpEmail, userEmpName);
     });
 });
 
@@ -1772,41 +1795,15 @@ app.put("/notifications/read-all/:email", (req, res) => {
     if (!email) return res.json({ success: false, message: "Email required" });
     const cleanEmail = String(email).trim().toLowerCase();
 
-    const lookupSql = `
-        SELECT u.u_role, e.position, e.emp_name, e.emp_email
-        FROM users u
-        LEFT JOIN employee e ON LOWER(TRIM(e.emp_email)) = LOWER(TRIM(u.u_email)) OR LOWER(TRIM(e.emp_name)) = LOWER(TRIM(u.u_name))
-        WHERE LOWER(TRIM(u.u_email)) = ? OR LOWER(TRIM(e.emp_email)) = ? OR LOWER(TRIM(e.emp_name)) = ?
-    `;
-
-    db.query(lookupSql, [cleanEmail, cleanEmail, cleanEmail], (uErr, uRows) => {
-        let isUserAdmin = cleanEmail.includes('admin') || cleanEmail === 'admin';
-        let isUserTL = cleanEmail === 'tl';
-        let empEmail = cleanEmail;
-        let empName = cleanEmail;
-
-        if (!uErr && uRows && uRows.length > 0) {
-            const row = uRows[0];
-            if (row.u_role === 'Admin') isUserAdmin = true;
-            if (row.position === 'TL' || row.u_role === 'TL') isUserTL = true;
-            if (row.emp_email) empEmail = row.emp_email.trim().toLowerCase();
-            if (row.emp_name) empName = row.emp_name.trim().toLowerCase();
-        }
-
+    getUserNotificationDetails(cleanEmail, ({ isUserAdmin, userEmpEmail: empEmail, userEmpName: empName }) => {
         let whereClauses = [];
         let params = [];
 
         if (isUserAdmin) {
-            whereClauses.push("LOWER(TRIM(recipient_email)) IN ('admin', ?)");
-            whereClauses.push("LOWER(TRIM(receiver_email)) IN ('admin', ?)");
-            params.push(empEmail, empEmail);
-        } else if (isUserTL) {
-            whereClauses.push("LOWER(TRIM(recipient_email)) IN ('tl', ?)");
-            whereClauses.push("LOWER(TRIM(receiver_email)) IN ('tl', ?)");
+            whereClauses.push("LOWER(TRIM(recipient_email)) IN ('admin', ?)", "LOWER(TRIM(receiver_email)) IN ('admin', ?)");
             params.push(empEmail, empEmail);
         } else {
-            whereClauses.push("LOWER(TRIM(recipient_email)) IN (?, ?)");
-            whereClauses.push("LOWER(TRIM(receiver_email)) IN (?, ?)");
+            whereClauses.push("LOWER(TRIM(recipient_email)) IN (?, ?)", "LOWER(TRIM(receiver_email)) IN (?, ?)");
             params.push(empEmail, empName, empEmail, empName);
         }
 

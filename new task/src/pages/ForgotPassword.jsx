@@ -4,8 +4,8 @@ import { motion } from 'framer-motion';
 import { Mail, Lock, Briefcase } from 'lucide-react';
 import { resetPassword } from '../services';
 import { useToast } from '../context/ToastContext';
-import { Button, Input } from '../components/ui';
-import { validatePassword, validateEmail } from '../utils/helpers';
+import { Button, Input, AuthBrandPanel } from '../components/ui';
+import { validateEmail, validatePasswordForm } from '../utils/helpers';
 
 export default function ForgotPassword() {
   const navigate = useNavigate();
@@ -34,16 +34,15 @@ export default function ForgotPassword() {
       return;
     }
 
-    const passCheck = validatePassword(password);
+    const passCheck = validatePasswordForm(password, cpassword);
     if (!passCheck.valid) {
-      setPasswordError(passCheck.message);
-      toast.warning(passCheck.message);
-      return;
-    }
-
-    if (password !== cpassword) {
-      setCpasswordError('Passwords do not match');
-      toast.error('Passwords do not match');
+      if (passCheck.type === 'error') {
+        setCpasswordError(passCheck.message);
+        toast.error(passCheck.message);
+      } else {
+        setPasswordError(passCheck.message);
+        toast.warning(passCheck.message);
+      }
       return;
     }
 
@@ -65,31 +64,12 @@ export default function ForgotPassword() {
 
   return (
     <div className="auth-page">
-      <aside className="auth-brand-panel">
-        <div>
-          <div className="auth-brand-glow-1" />
-          <div className="auth-brand-glow-2" />
-        </div>
-        <div className="auth-brand-header">
-          <div className="auth-brand-icon">
-            <Briefcase className="w-5 h-5" />
-          </div>
-          <span className="auth-brand-title">Task Management</span>
-        </div>
-        <motion.div
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-          className="auth-brand-content"
-        >
-          <p className="auth-brand-subtitle">Account recovery</p>
-          <h1 className="auth-brand-heading">Let's get you back in.</h1>
-          <p className="auth-brand-description">
-            Set a new password for your account and you'll be right back to your dashboard.
-          </p>
-        </motion.div>
-        <div className="auth-brand-footer">© {new Date().getFullYear()} Task Management System</div>
-      </aside>
+      <AuthBrandPanel
+        icon={Briefcase}
+        subtitle="Account recovery"
+        heading="Let's get you back in."
+        description="Set a new password for your account and you'll be right back to your dashboard."
+      />
 
       <div className="auth-form-panel">
         <motion.div

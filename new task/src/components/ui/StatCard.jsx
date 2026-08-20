@@ -29,6 +29,14 @@ export default function StatCard({
       transition={{ type: 'spring', stiffness: 300, damping: 20 }}
       className={classNames('stat-card', isActive && 'active', className)}
       onClick={onClick}
+      role={onClick ? 'button' : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onKeyDown={onClick ? (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onClick(e);
+        }
+      } : undefined}
       style={{
         cursor: onClick ? 'pointer' : 'default',
         ...(isActive ? {

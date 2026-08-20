@@ -6,7 +6,7 @@ import {
   CheckSquare,
   BarChart3,
   User,
-  Settings,
+  // Settings,
   LogOut,
   ChevronLeft,
   ClipboardList,
@@ -16,11 +16,18 @@ import { useAuth } from '../../context/AuthContext';
 import { classNames } from '../../utils/helpers';
 import  Avatar  from '../ui/Avatar';
 
-const adminNav = [
+const ctoNav = [
   { to: '/admin', icon: LayoutDashboard, label: 'Dashboard' },
   { to: '/admin/employees', icon: Users, label: 'Employees' },
   { to: '/admin/reports', icon: BarChart3, label: 'Reports' },
-  { to: '/admin/settings', icon: Settings, label: 'Settings' },
+  // { to: '/admin/settings', icon: Settings, label: 'Settings' },
+  { to: '/admin/profile', icon: User, label: 'Profile' },
+];
+
+const adminNav = [
+  { to: '/admin2/employees', icon: Users, label: 'Employees' },
+  // { to: '/admin2/setting', icon: Settings, label: 'Settings' },
+  { to: '/admin2/profile', icon: User, label: 'Profile' },
 ];
 
 const tlNav = [
@@ -36,11 +43,53 @@ const employeeNav = [
   { to: '/employee/profile', icon: User, label: 'Profile' },
 ];
 
+function SidebarLinks({ items, collapsed, mobileOpen, onMobileClose }) {
+  return (
+    <nav className="sidebar-nav">
+      {items.map((item) => (
+        <NavLink
+          key={item.to}
+          to={item.to}
+          end={item.to === '/admin' || item.to === '/admin2' || item.to === '/employee' || item.to === '/TL'}
+          onClick={onMobileClose}
+          className={({ isActive }) =>
+            classNames('sidebar-nav-item', isActive && 'active')
+          }
+        >
+          {({ isActive }) => (
+            <>
+              {isActive && (
+                <motion.div
+                  layoutId="activeNav"
+                  className="sidebar-active-indicator"
+                />
+              )}
+              <item.icon className="sidebar-nav-icon" />
+              {(!collapsed || mobileOpen) && <span className="whitespace-nowrap">{item.label}</span>}
+            </>
+          )}
+        </NavLink>
+      ))}
+    </nav>
+  );
+}
+
+function getDefaultRoleInfo(role) {
+  if (role === 'Admin') {
+    return { avatarName: 'Admin User', displayName: 'Admin', navItems: adminNav };
+  }
+  if (role === 'Cto') {
+    return { avatarName: 'Cto User', displayName: 'Cto', navItems: ctoNav };
+  }
+  if (role === 'TL') {
+    return { avatarName: 'Team Lead', displayName: 'Team Lead', navItems: tlNav };
+  }
+  return { avatarName: 'Employee Staff', displayName: 'Employee', navItems: employeeNav };
+}
+
 export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }) {
   const { user, logout } = useAuth();
-  const isAdmin = user?.role === 'Admin';
-  const isTL = user?.role === 'TL';
-  const navItems = isAdmin ? adminNav : isTL ? tlNav : employeeNav;
+  const { avatarName: defaultAvatarName, displayName: defaultDisplayName, navItems } = getDefaultRoleInfo(user?.role);
 
   const handleKeyDown =(e)=>{
     if(e.key === 'Escape' || e.key === ' ' || e.key === 'Enter'){
@@ -100,49 +149,25 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose
               </button>
             )}
           </div>
-        </div>
-
-        <nav className="sidebar-nav">
-          {navItems.map((item) => (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              end={item.to === '/admin' || item.to === '/employee' || item.to === '/TL'}
-              onClick={onMobileClose}
-              className={({ isActive }) =>
-                classNames(
-                  'sidebar-nav-item',
-                  isActive && 'active'
-                )
-              }
-            >
-              {({ isActive }) => (
-                <>
-                  {isActive && (
-                    <motion.div
-                      layoutId="activeNav"
-                      className="sidebar-active-indicator"
-                    />
-                  )}
-                  <item.icon className="sidebar-nav-icon" />
-                  {(!collapsed || mobileOpen) && <span className="whitespace-nowrap">{item.label}</span>}
-                </>
-              )}
-            </NavLink>
-          ))}
-        </nav>
-
+        </div>    
+        <SidebarLinks 
+          items={navItems} 
+          collapsed={collapsed} 
+          mobileOpen={mobileOpen} 
+          onMobileClose={onMobileClose} 
+        />
+ 
         <div className="sidebar-footer">
           <div className={classNames('sidebar-user-card', (collapsed && !mobileOpen) && 'centered')}>
             <Avatar 
-              name={user?.name || (isAdmin ? 'Admin User' : 'Employee Staff')} 
+              name={user?.name || defaultAvatarName} 
               size="sm" 
               className="text-xs font-bold"
             />
             {(!collapsed || mobileOpen) && (
               <div className="sidebar-user-info">
                 <p className="sidebar-user-name">
-                  {user?.name || (isAdmin ? 'Admin' : 'Employee')}
+                  {user?.name || defaultDisplayName}
                 </p>
                 <p className="sidebar-user-email">{user?.email || ''}</p>
               </div>

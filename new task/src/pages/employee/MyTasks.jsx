@@ -4,7 +4,7 @@ import { ClipboardList, Edit3, CheckCircle2, Clock, LoaderCircleIcon, AlertTrian
 import { getTasks, updateTaskStatus } from '../../services';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
-import { Card, EmptyState, ErrorState, TableSkeleton, Badge, Button, Modal, Select } from '../../components/ui';
+import { Card, EmptyState, ErrorState, TableSkeleton, Badge, Button, Modal, TaskDueReminderAlert } from '../../components/ui';
 import { statusVariant } from '../../components/ui/Badge';
 
 import { formatDate } from '../../utils/helpers';
@@ -89,6 +89,7 @@ export default function MyTasks() {
         remarks: updateDailyUpdate,
         daily_update: updateDailyUpdate,
         tl_reply: selectedTask.tl_reply || '',
+        sender_role: 'Employee',
       });
 
       if (res.data.success) {
@@ -114,22 +115,6 @@ export default function MyTasks() {
   };
 
   const todayStr = new Date().toISOString().split('T')[0];
-  const todayMidnight = new Date();
-  todayMidnight.setHours(0, 0, 0, 0);
-
-  const dueSoonTasks = tasks.filter((t) => {
-    const isCompleted = (t.status || '').toLowerCase().includes('complete');
-    if (isCompleted) return false;
-    const deadlineVal = t.deadline || t.dline;
-    if (!deadlineVal) return false;
-    const dDate = new Date(deadlineVal);
-    if (isNaN(dDate.getTime())) return false;
-    dDate.setHours(0, 0, 0, 0);
-
-    const diffDays = Math.round((dDate.getTime() - todayMidnight.getTime()) / (1000 * 3600 * 24));
-    // Include active tasks that have not crossed the due date (diffDays >= 0) and are due today or soon
-    return diffDays >= 0 && diffDays <= 2;
-  });
 
   return (
     <div className="dashboard-space-y">
@@ -138,54 +123,7 @@ export default function MyTasks() {
         <p className="dashboard-header-sub">Submit daily task updates, change task status, and view replies from your Team Lead.</p>
       </div>
 
-      {dueSoonTasks.length > 0 && (
-        <div
-          style={{
-            backgroundColor: '#fefce8',
-            border: '1px solid #fef08a',
-            borderRadius: '10px',
-            padding: '1rem 1.25rem',
-            display: 'flex',
-            alignItems: 'flex-start',
-            gap: '0.75rem',
-            color: '#854d0e',
-            boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
-          }}
-        >
-          <AlertTriangle className="w-5 h-5" style={{ color: '#ca8a04', marginTop: '2px', flexShrink: 0 }} />
-          <div>
-            <h4 style={{ margin: '0 0 0.25rem 0', fontSize: '0.95rem', fontWeight: 600, color: '#a16207' }}>
-              Task Due Date Reminder Alert
-            </h4>
-            <p style={{ margin: 0, fontSize: '0.875rem', lineHeight: '1.4' }}>
-              You have <strong>{dueSoonTasks.length}</strong> task(s) with upcoming deadlines:
-            </p>
-            <ul style={{ margin: '0.35rem 0 0 1.25rem', padding: 0, fontSize: '0.85rem' }}>
-              {dueSoonTasks.map((t, idx) => {
-                const deadlineVal = t.deadline || t.dline;
-                const dDate = new Date(deadlineVal);
-                dDate.setHours(0, 0, 0, 0);
-                const diffDays = Math.round((dDate.getTime() - todayMidnight.getTime()) / (1000 * 3600 * 24));
-
-                let dueLabel = `Due on ${formatDate(deadlineVal)}`;
-                if (diffDays === 0) {
-                  dueLabel = <strong style={{ color: '#dc2626' }}>Today is the last date for this task</strong>;
-                } else if (diffDays === 1) {
-                  dueLabel = `Due tomorrow (1 day left)`;
-                } else if (diffDays > 1) {
-                  dueLabel = `Due on ${formatDate(deadlineVal)} (${diffDays} days left)`;
-                }
-
-                return (
-                  <li key={t.assign_id || t.id || idx} style={{ marginBottom: '0.2rem' }}>
-                    <strong>{t.task_name}</strong> — {dueLabel}
-                  </li>
-                );
-              })}
-            </ul>
-          </div>
-        </div>
-      )}
+      <TaskDueReminderAlert tasks={tasks} />
 
       <Card className="ui-card-p6">
         {(() => {
@@ -215,7 +153,7 @@ export default function MyTasks() {
 
                       <h4 className="task-card-title">{t.task_name}</h4>
                       
-                      <p className="task-card-desc"><label htmlFor="" style={{color:'black',fontWeight:'600'}}>Description - </label>{t.descriptions || 'No description provided.'}</p>
+                      <p className="task-card-desc"><strong style={{color:'black',fontWeight:'600'}}>Description - </strong>{t.descriptions || 'No description provided.'}</p>
 
                       {isOverdue && (
                         <div style={{

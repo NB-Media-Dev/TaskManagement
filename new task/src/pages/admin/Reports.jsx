@@ -83,43 +83,44 @@ export default function Reports() {
 
   const today = new Date();
 
-  const finalTasks = tasks.filter(task => {
-    if (statusCardFilter !== "All") {
-      const st = task.status || "Pending";
-      if (statusCardFilter === "Completed" && !st.toLowerCase().includes("complete")) return false;
-      if (statusCardFilter === "In Progress" && !(st.toLowerCase().includes("progress") || st.toLowerCase().includes("incomplete"))) return false;
-      if (statusCardFilter === "Pending" && !st.toLowerCase().includes("pending")) return false;
-    }
-
-    if (period !== "All") {
-      const taskDate = new Date(task.assign_date);
-
-      if (period === "Daily") {
-        if (taskDate.toDateString() !== today.toDateString()) return false;
-      }
-
-      if (period === "Weekly") {
-        const weekAgo = new Date();
-        weekAgo.setDate(today.getDate() - 7);
-        if (taskDate < weekAgo) return false;
-      }
-
-      if (period === "Monthly") {
-        if (taskDate.getMonth() !== today.getMonth() || taskDate.getFullYear() !== today.getFullYear()) return false;
-      }
-    }
-
-    if (view === "Employee" && selectedEmployee) {
-      return task.assign_to === selectedEmployee;
-    }
-
-    if (view === "Team" && selectedTeam) {
-      const emp = getEmployee(task.assign_to);
-      return emp?.emp_role === selectedTeam;
-    }
-
+  const matchesStatusFilter = (task, filter) => {
+    if (filter === "All") return true;
+    const st = (task.status || "Pending").toLowerCase();
+    if (filter === "Completed") return st.includes("complete");
+    if (filter === "In Progress") return st.includes("progress") || st.includes("incomplete");
+    if (filter === "Pending") return st.includes("pending");
     return true;
-  });
+  };
+
+  const matchesPeriodFilter = (task, per, todayDate) => {
+    if (per === "All") return true;
+    const taskDate = new Date(task.assign_date);
+    if (per === "Daily") return taskDate.toDateString() === todayDate.toDateString();
+    if (per === "Weekly") {
+      const weekAgo = new Date();
+      weekAgo.setDate(todayDate.getDate() - 7);
+      return taskDate >= weekAgo;
+    }
+    if (per === "Monthly") {
+      return taskDate.getMonth() === todayDate.getMonth() && taskDate.getFullYear() === todayDate.getFullYear();
+    }
+    return true;
+  };
+
+  const matchesViewFilter = (task, v, selEmp, selTeam) => {
+    if (v === "Employee" && selEmp) return task.assign_to === selEmp;
+    if (v === "Team" && selTeam) {
+      const emp = getEmployee(task.assign_to);
+      return emp?.emp_role === selTeam;
+    }
+    return true;
+  };
+
+  const finalTasks = tasks.filter(task =>
+    matchesStatusFilter(task, statusCardFilter) &&
+    matchesPeriodFilter(task, period, today) &&
+    matchesViewFilter(task, view, selectedEmployee, selectedTeam)
+  );
 
   const completedCount = tasks.filter(t => t.status?.toLowerCase().includes("complete")).length;
   const inProgressCount = tasks.filter(t => {
@@ -141,34 +142,50 @@ export default function Reports() {
 
       <div className="dashboard-grid-4" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "1rem"}}>
         
-        <div onClick={() => setStatusCardFilter("All")} style={{ cursor: "pointer", borderRadius: "12px" }}>
+         <button 
+          type="button"
+          onClick={() => setStatusCardFilter("All")} 
+          style={{ cursor: "pointer", borderRadius: "12px", background: "none", border: "none", padding: 0, width: "100%", textAlign: "left" }}
+        >
           <StatCard
             label="Total Tasks"
             value={tasks.length}
             icon={ClipboardList}
             variant="primary"
           />
-        </div>
+        </button>
 {/* outline: statusCardFilter === "Completed" ? "2px solid var(--success)" : "none", */}
-        <div onClick={() => setStatusCardFilter("Completed")} style={{ cursor: "pointer",  borderRadius: "12px" }}>
+         <button 
+          type="button"
+          onClick={() => setStatusCardFilter("Completed")} 
+          style={{ cursor: "pointer", borderRadius: "12px", background: "none", border: "none", padding: 0, width: "100%", textAlign: "left" }}
+        >
           <StatCard
             label="Completed"
             value={completedCount}
             icon={CalendarDays}
             variant="success"
           />
-        </div>
+        </button>
  {/* outline: statusCardFilter === "In Progress" ? "2px solid var(--primary)" : "none", */}
-        <div onClick={() => setStatusCardFilter("In Progress")} style={{ cursor: "pointer", borderRadius: "12px" }}>
+         <button 
+          type="button"
+          onClick={() => setStatusCardFilter("In Progress")} 
+          style={{ cursor: "pointer", borderRadius: "12px", background: "none", border: "none", padding: 0, width: "100%", textAlign: "left" }}
+        >
           <StatCard
             label="In Progress"
             value={inProgressCount}
             icon={ClipboardList}
             variant="primary"
           />
-        </div>
+        </button>
  {/* outline: statusCardFilter === "Pending" ? "2px solid var(--warning)" : "none", */}
-        <div onClick={() => setStatusCardFilter("Pending")} style={{ cursor: "pointer", borderRadius: "12px" }}>
+       <button 
+          type="button"
+          onClick={() => setStatusCardFilter("Pending")} 
+          style={{ cursor: "pointer", borderRadius: "12px", background: "none", border: "none", padding: 0, width: "100%", textAlign: "left" }}
+        >
           <StatCard
             label="Pending"
             value={pendingCount}
@@ -176,7 +193,7 @@ export default function Reports() {
           
             variant="warning"
           />
-        </div>
+        </button>
       </div>
       <Card className="ui-card-p6">
 
@@ -284,117 +301,79 @@ export default function Reports() {
             )}
           </div>
         </div>
-        {
-          loading ?
+        {(() => {
+          if (loading) return <TableSkeleton rows={5} cols={8} />;
+          if (finalTasks.length === 0) return <EmptyState icon={ClipboardList} title="No task report found" />;
+          return (
+            <div className="table-responsive-wrapper">
+              <table className="data-table">
+                <thead>
+                  <tr className="table-header">
+                    <th className="table-cell">
+                      {view === "Employee" ? "Employee" : "Team Member"}
+                    </th>
+                    <th className="table-cell">Task</th>
+                    <th className="table-cell">Dates</th>
+                    <th className="table-cell">Status</th>
+                    <th className="table-cell">Performance</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {finalTasks.map((task, index) => {
+                    const emp = getEmployee(task.assign_to);
+                    const isCompleted = task.status?.toLowerCase().includes("complete");
 
-            <TableSkeleton
-              rows={5}
-              cols={8}
-            />
-            : finalTasks.length === 0 ?
-              <EmptyState
-                icon={ClipboardList}
-                title="No task report found"
-              />
-              :
-              <div className="table-responsive-wrapper">
-
-                <table className="data-table">
-
-                  <thead>
-                    <tr className="table-header">
-
-                      <th className="table-cell">
-                        {
-                          view === "Employee"
-                            ?
-                            "Employee"
-                            :
-                            "Team Member"
-                        }
-                      </th>
-
-                      <th className="table-cell">
-                        Task
-                      </th>
-
-                      <th className="table-cell">
-                        Dates
-                      </th>
-                      <th className="table-cell">
-                        Status
-                      </th>
-                      <th className="table-cell">
-                        Performance
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {
-                      finalTasks.map((task, index) => {
-                        const emp = getEmployee(task.assign_to);
-                        const isCompleted = task.status?.toLowerCase().includes("complete");
-
-                        return (
-                          <tr
-                            key={task.assign_id ? `${task.assign_id}-${index}` : index}
-                            className="table-row"
-                          >
-                            <td className="table-cell">
-                              {
-                                view === "Employee"
-                                  ? task.assign_to
-                                  : `${task.assign_to} (${emp?.emp_role || "-"})`
-                              }
-                            </td>
-                            <td className="table-cell font-medium" style={{width:'25%'}}>
-                              {task.task_name}
-                            </td>
-                            <td className="table-cell" style={{ minWidth: "190px" }}>
-                              <ul style={{ listStyle: "none", margin: 0, padding: 0, fontSize: "0.825rem", lineHeight: "1.5" }}>
-                                <li style={{ display: "flex", alignItems: "center", gap: "0.35rem" }}>
-                                  <span style={{ color: "#eab308", fontSize: "1rem" }}>●</span>
-                                  <span><strong>Assign:</strong> {formatDate(task.assign_date)}</span>
-                                </li>
-                                <li style={{ display: "flex", alignItems: "center", gap: "0.35rem" }}>
-                                  <span style={{ color: "#ef4444", fontSize: "1rem" }}>●</span>
-                                  <span><strong>Due:</strong> {formatDate(task.deadline || task.dline)}</span>
-                                </li>
-                                {isCompleted && (
-                                  <li style={{ display: "flex", alignItems: "center", gap: "0.35rem" }}>
-                                    <span style={{ color: "#22c55e", fontSize: "1rem" }}>●</span>
-                                    <span><strong>Completed:</strong> {formatDate(task.completed_date || task.updated_at || task.assign_date)}</span>
-                                  </li>
-                                )}
-                              </ul>
-                            </td>
-                            <td className="table-cell">
-                              <Badge
-                                variant={
-                                  statusVariant(
-                                    task.status || "Pending"
-                                  )
-                                }
-                              >
-                                {task.status || "Pending"}
-                              </Badge>
-                            </td>
-                            <td className="table-cell text-muted" style={{ maxWidth: "14rem" }}>
-                              {task.performance ? (
-                                <span style={{ fontWeight: 500, color: "var(--text-primary)" }}>{task.performance}</span>
-                              ) : (
-                                <span style={{ opacity: 0.5 }}>-</span>
-                              )}
-                            </td>
-                          </tr>
-                        );
-                      })
-                    }
-
-                  </tbody>
-                </table>
-              </div>
-        }
+                    return (
+                      <tr
+                        key={task.assign_id ? `${task.assign_id}-${index}` : index}
+                        className="table-row"
+                      >
+                        <td className="table-cell">
+                          {view === "Employee"
+                            ? task.assign_to
+                            : `${task.assign_to} (${emp?.emp_role || "-"})`}
+                        </td>
+                        <td className="table-cell font-medium" style={{width:'25%'}}>
+                          {task.task_name}
+                        </td>
+                        <td className="table-cell" style={{ minWidth: "190px" }}>
+                          <ul style={{ listStyle: "none", margin: 0, padding: 0, fontSize: "0.825rem", lineHeight: "1.5" }}>
+                            <li style={{ display: "flex", alignItems: "center", gap: "0.35rem" }}>
+                              <span style={{ color: "#eab308", fontSize: "1rem" }}>●</span>
+                              <span><strong>Assign:</strong> {formatDate(task.assign_date)}</span>
+                            </li>
+                            <li style={{ display: "flex", alignItems: "center", gap: "0.35rem" }}>
+                              <span style={{ color: "#ef4444", fontSize: "1rem" }}>●</span>
+                              <span><strong>Due:</strong> {formatDate(task.deadline || task.dline)}</span>
+                            </li>
+                            {isCompleted && (
+                              <li style={{ display: "flex", alignItems: "center", gap: "0.35rem" }}>
+                                <span style={{ color: "#22c55e", fontSize: "1rem" }}>●</span>
+                                <span><strong>Completed:</strong> {formatDate(task.completed_date || task.updated_at || task.assign_date)}</span>
+                              </li>
+                            )}
+                          </ul>
+                        </td>
+                        <td className="table-cell">
+                          <Badge variant={statusVariant(task.status || "Pending")}>
+                            {task.status || "Pending"}
+                          </Badge>
+                        </td>
+                        <td className="table-cell text-muted" style={{ maxWidth: "14rem" }}>
+                          {task.performance ? (
+                            <span style={{ fontWeight: 500, color: "var(--text-primary)" }}>{task.performance}</span>
+                          ) : (
+                            <span style={{ opacity: 0.5 }}>-</span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          );
+        })()}
       </Card>
 
     </div>

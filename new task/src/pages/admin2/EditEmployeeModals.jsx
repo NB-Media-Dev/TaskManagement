@@ -1,7 +1,7 @@
 import { Modal, Button, Input, Select } from '../../components/ui';
 import { ROLE_OPTIONS } from '../../utils/helpers';
 
-export default function EditEmployeeModal({
+export default function EditEmployeeModals({
   open,
   onClose,
   name,
@@ -44,16 +44,16 @@ export default function EditEmployeeModal({
           options={ROLE_OPTIONS}
           placeholder="Select role"
         />
-        <Select
+        {/* <Select
           label="Position"
           value={position}
-          onChange={(e) => setPosition && setPosition(e.target.value)}
+          onChange={(e) => setPosition?.(e.target.value)}
           options={[
             { value: 'Employee', label: 'Employee' },
             { value: 'TL', label: 'TL (Team Leader)' },
           ]}
           placeholder="Select position"
-        />
+        /> */}
        <div style={{ gridColumn: '1/-1' }}>
           <Input
             label="Employee Password (Admin Reset)"

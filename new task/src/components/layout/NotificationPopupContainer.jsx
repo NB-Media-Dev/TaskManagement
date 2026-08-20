@@ -7,8 +7,7 @@ import {
   Edit3, 
   MessageSquare, 
   AlertTriangle, 
-  X,
-  ExternalLink
+  X
 } from 'lucide-react';
 
 const getNotifIcon = (type) => {

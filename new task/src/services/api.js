@@ -5,7 +5,7 @@ const getApiBaseUrl = () => {
   if (import.meta.env.VITE_API_BASE_URL) {
     return import.meta.env.VITE_API_BASE_URL;
   }
-  if (typeof window !== 'undefined' && window.location && window.location.hostname) {
+  if (typeof window !== 'undefined' && window.location?.hostname) {
     const hostname = window.location.hostname;
     const port = import.meta.env.VITE_API_PORT || '5000';
     const protocol = window.location.protocol || 'http:';

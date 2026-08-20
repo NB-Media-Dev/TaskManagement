@@ -3,7 +3,7 @@ import { Users, ClipboardList, Clock, CheckCheck, LoaderCircleIcon } from 'lucid
 import { useAuth } from '../../context/AuthContext';
 import { Card, StatCard, EmptyState, Badge, TableSkeleton } from '../../components/ui';
 import { statusVariant } from '../../components/ui/Badge';
-import { getEmployees, getAttendance, getTasks } from '../../services';
+import { getEmployees, getTasks } from '../../services';
 import { formatDate } from '../../utils/helpers';
 const TEAMS_LIST = [
   "All",
@@ -18,7 +18,6 @@ export default function AdminDashboard() {
   const { user } = useAuth();
 
   const [employees, setEmployees] = useState([]);
-  const [attendance, setAttendance] = useState([]);
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedTeam, setSelectedTeam] = useState("All");
@@ -27,14 +26,12 @@ export default function AdminDashboard() {
     const fetchDashboardData = async () => {
       setLoading(true);
       try {
-        const [empRes, attRes, taskRes] = await Promise.all([
+        const [empRes, taskRes] = await Promise.all([
           getEmployees().catch(() => null),
-          getAttendance().catch(() => null),
           getTasks().catch(() => null)
         ]);
 
         if (empRes?.data?.success) setEmployees(empRes.data.data);
-        if (attRes?.data?.success) setAttendance(attRes.data.data);
         if (taskRes?.data?.success) setTasks(taskRes.data.data);
       } catch (err) {
         console.error(err);
@@ -55,46 +52,12 @@ export default function AdminDashboard() {
   };
 
   const totalEmployees = employees.length;
-  const presentToday = attendance.filter((a) => a.status?.toString().toLowerCase() === "present").length;
-  const totalTasks = tasks.length;
   const completedTasks = tasks.filter((t) => t.status?.toLowerCase().includes("complete")).length;
   const inprogressTasks = tasks.filter((t) => {
     const s = t.status?.toLowerCase() || '';
     return s.includes("progress") || s.includes("inprogress") || s.includes("incomplete");
   }).length;
   const pendingTasks = tasks.filter((t) => !t.status || t.status?.toLowerCase().includes("pending")).length;
-
- 
-  const teamGroupedMap = {};
-  TEAMS_LIST.filter(t => t !== "All").forEach(tName => {
-    teamGroupedMap[tName] = [];
-  });
-
-  tasks.forEach((t) => {
-    const team = getTaskTeam(t);
-    if (!teamGroupedMap[team]) teamGroupedMap[team] = [];
-    teamGroupedMap[team].push(t);
-  });
-
-  const teamSummaries = Object.keys(teamGroupedMap).map((tName) => {
-    const tList = teamGroupedMap[tName];
-    const comp = tList.filter((t) => t.status?.toLowerCase().includes("complete")).length;
-    const incomp = tList.filter((t) => {
-      const s = t.status?.toLowerCase() || '';
-      return s.includes("progress") || s.includes("inprogress") || s.includes("incomplete");
-    }).length;
-    const pend = tList.filter((t) => !t.status || t.status?.toLowerCase().includes("pending")).length;
-    const pct = tList.length > 0 ? Math.round((comp / tList.length) * 100) : 0;
-    return {
-      teamName: tName,
-      total: tList.length,
-      completed: comp,
-      inprogress: incomp,
-      pending: pend,
-      percentage: pct,
-      tasks: tList,
-    };
-  });
 
   const displayedTasks = selectedTeam === "All"
     ? tasks
@@ -103,7 +66,7 @@ export default function AdminDashboard() {
   return (
     <div className="dashboard-space-y">
       <div>
-        <h1 className="dashboard-header-title">Admin Dashboard</h1>
+        <h1 className="dashboard-header-title">CTO Dashboard</h1>
         <p className="dashboard-header-sub">
           Welcome back{user?.email ? `, ${user.email.split("@")[0]}` : ""}.
           Here's how your teams and tasks are performing today.

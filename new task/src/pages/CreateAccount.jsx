@@ -4,8 +4,8 @@ import { motion } from 'framer-motion';
 import { User, Mail, Lock, Briefcase, Info } from 'lucide-react';
 import { createAccount } from '../services';
 import { useToast } from '../context/ToastContext';
-import { Button, Input } from '../components/ui';
-import { validatePassword, validateName, validateEmail } from '../utils/helpers';
+import { Button, Input, AuthBrandPanel, RoleRadioSelector } from '../components/ui';
+import { validateName, validateEmail, validateEmployeeRoleAndPassword } from '../utils/helpers';
 
 export default function CreateAccount() {
   const navigate = useNavigate();
@@ -42,15 +42,10 @@ export default function CreateAccount() {
       return;
     }
 
-    const passCheck = validatePassword(password);
-    if (!passCheck.valid) {
-      setPasswordError(passCheck.message);
-      toast.warning(passCheck.message);
-      return;
-    }
-
-    if (!role) {
-      toast.warning('Please select a role');
+    const rolePassCheck = validateEmployeeRoleAndPassword(role, password);
+    if (!rolePassCheck.valid) {
+      if (rolePassCheck.field === 'password') setPasswordError(rolePassCheck.message);
+      toast.warning(rolePassCheck.message);
       return;
     }
 
@@ -77,31 +72,12 @@ export default function CreateAccount() {
 
   return (
     <div className="auth-page">
-      <aside className="auth-brand-panel">
-        <div>
-          <div className="auth-brand-glow-1" />
-          <div className="auth-brand-glow-2" />
-        </div>
-        <div className="auth-brand-header">
-          <div className="auth-brand-icon">
-            <Briefcase className="w-5 h-5" />
-          </div>
-          <span className="auth-brand-title">Task Management</span>
-        </div>
-        <motion.div
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-          className="auth-brand-content"
-        >
-          <p className="auth-brand-subtitle">Get started</p>
-          <h1 className="auth-brand-heading">Set up your account.</h1>
-          <p className="auth-brand-description">
-            Create your login once, and your admin or employee dashboard is one sign-in away.
-          </p>
-        </motion.div>
-        <div className="auth-brand-footer">© {new Date().getFullYear()} Task Management System</div>
-      </aside>
+      <AuthBrandPanel
+        icon={Briefcase}
+        subtitle="Get started"
+        heading="Set up your account."
+        description="Create your login once, and your admin or employee dashboard is one sign-in away."
+      />
 
       <div className="auth-form-panel">
         <motion.div
@@ -119,28 +95,7 @@ export default function CreateAccount() {
             <Input label="Email address" type="email" icon={Mail} value={email} onChange={(e) => setEmail(e.target.value)} error={emailError} required />
             <Input label="Password" type="password" icon={Lock} value={password} onChange={(e) => setPassword(e.target.value)} error={passwordError} required />
 
-            <div>
-              <span className="form-label" style={{ display: 'block', marginBottom: '0.5rem' }}>Role</span>
-              <div className="radio-grid">
-                {['Admin', 'Employee', 'TL'].map((r) => (
-                  <label
-                    key={r}
-                    className={`radio-label ${role === r ? 'selected' : ''}`}
-                  >
-                    <input
-                      type="radio"
-                      name="role"
-                      value={r}
-                      checked={role === r}
-                      onChange={(e) => setRole(e.target.value)}
-                      className="sr-only"
-                      required
-                    />
-                    {r}
-                  </label>
-                ))}
-              </div>
-            </div>
+            <RoleRadioSelector role={role} onChange={(e) => setRole(e.target.value)} />
 
             {role === 'Employee' && (
               <div

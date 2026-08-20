@@ -8,7 +8,14 @@ const Input = forwardRef(function Input(
 ) {
   const [showPassword, setShowPassword] = useState(false);
   const isPassword = type === 'password';
-  const currentType = isPassword ? (showPassword ? 'text' : 'password') : type;
+  let currentType = type;
+  if (isPassword) {
+    if (showPassword) {
+      currentType = 'text';
+    } else {
+      currentType = 'password';
+    }
+  }
 
   return (
     <div className={classNames('form-group', containerClassName)}>
@@ -72,5 +79,52 @@ const Input = forwardRef(function Input(
 });
 
 export default Input;
+
+export function AuthBrandPanel({ icon: Icon, subtitle, heading, description }) {
+  return (
+    <aside className="auth-brand-panel">
+      <div>
+        <div className="auth-brand-glow-1" />
+        <div className="auth-brand-glow-2" />
+      </div>
+      <div className="auth-brand-header">
+        <div className="auth-brand-icon">
+          <Icon className="w-5 h-5" />
+        </div>
+        <span className="auth-brand-title">Task Management</span>
+      </div>
+      <div className="auth-brand-content">
+        <p className="auth-brand-subtitle">{subtitle}</p>
+        <h1 className="auth-brand-heading">{heading}</h1>
+        <p className="auth-brand-description">{description}</p>
+      </div>
+      <div className="auth-brand-footer">© {new Date().getFullYear()} Task Management System</div>
+    </aside>
+  );
+}
+
+export function RoleRadioSelector({ role, onChange, roles = ['Admin','Cto', 'Employee', 'TL'] }) {
+  return (
+    <div>
+      <span className="form-label" style={{ display: 'block', marginBottom: '0.5rem' }}>Role</span>
+      <div className="radio-grid">
+        {roles.map((r) => (
+          <label key={r} className={`radio-label ${role === r ? 'selected' : ''}`}>
+            <input
+              type="radio"
+              name="role"
+              value={r}
+              checked={role === r}
+              onChange={onChange}
+              className="sr-only"
+              required
+            />
+            {r}
+          </label>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 

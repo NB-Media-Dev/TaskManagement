@@ -5,7 +5,7 @@ import { Mail, Lock, ClipboardCheck } from 'lucide-react';
 import { login } from '../services';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
-import { Button, Input } from '../components/ui';
+import { Button, Input, AuthBrandPanel, RoleRadioSelector } from '../components/ui';
 
 export default function Login() {
   const navigate = useNavigate();
@@ -15,26 +15,21 @@ export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [role, setRole] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const [emailError, setEmailError] = useState('');
   const [passwordError, setPasswordError] = useState('');
-  const [roleError, setRoleError] = useState('');
 
-  const handleLogin = async (e) => {
-    e.preventDefault();
-
+  const validateForm = () => {
     let valid = true;
     setEmailError('');
     setPasswordError('');
-    setRoleError('');
 
     const trimmedEmail = email.trim();
     if (!trimmedEmail) {
       setEmailError('Email address is required.');
       valid = false;
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
+    } else if (!/^[^\s@]+@[^\s@.]+\.[^\s@]+$/.test(trimmedEmail)) {
       setEmailError('Please enter a valid email address.');
       valid = false;
     }
@@ -45,12 +40,30 @@ export default function Login() {
     }
 
     if (!role) {
-      setRoleError('Please select a role.');
       toast.warning('Please select a role');
       valid = false;
     }
 
-    if (!valid) return;
+    return valid ? trimmedEmail : null;
+  };
+
+  const redirectUserByRole = (userRole) => {
+    if (userRole === "Cto") {
+      navigate("/admin");
+    }  else if (userRole === "Admin") {
+      navigate("/admin2/employees");
+    } else if (userRole === "Employee") {
+      navigate("/employee");
+    } else if (userRole === "TL") {
+      navigate("/TL");
+    }
+  };
+
+  const handleLogin = async (e) => {
+    e.preventDefault();
+
+    const trimmedEmail = validateForm();
+    if (!trimmedEmail) return;
 
     setLoading(true);
 
@@ -63,60 +76,29 @@ export default function Login() {
 
       if (res.data.success) {
         loginUser(res.data.user);
-        if (res.data.user.role === "Admin") {
-          navigate("/admin");
-        } else if (res.data.user.role === "Employee") {
-          navigate("/employee");
-        } else if (res.data.user.role === "TL") {
-          navigate("/TL");
-        }
+        redirectUserByRole(res.data.user.role);
       } else {
         toast.error(res.data.message || "Invalid login");
       }
     } catch(err) {
-      if (err.response?.data?.message) {
-        toast.error(err.response.data.message);
-      } else if (!err.response || err.code === "ERR_NETWORK" || err.message?.toLowerCase().includes("network")) {
-        toast.error("Network Error: Unable to connect to backend server. Please verify your connection and check if the backend server is running.");
-      } else {
-        toast.error(err.message || "Something went wrong! Please try again.");
-      }
+      toast.error(
+        err.response?.data?.message ||
+        err.message ||
+        "Something went wrong"
+      );
     } finally {
       setLoading(false);
     }
   };
   return (
     <div className="auth-page">
-     
-      <aside className="auth-brand-panel">
-        <div>
-          <div className="auth-brand-glow-1" />
-          <div className="auth-brand-glow-2" />
-        </div>
-        <div className="auth-brand-header">
-          <div className="auth-brand-icon">
-            <ClipboardCheck className="w-5 h-5" />
-          </div>
-          <span className="auth-brand-title">Task Management</span>
-        </div>
-        <motion.div
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-          className="auth-brand-content"
-        >
-          <p className="auth-brand-subtitle">Team Access</p>
-          <h1 className="auth-brand-heading">Everyone, in one place.</h1>
-          <p className="auth-brand-description">
-            Sign in to track attendance, manage your team, and keep work moving — whether you're an admin or on the floor.
-          </p>
-        </motion.div>
-        <div></div>
-        <div></div>
-        {/* <div className="auth-brand-footer">© {new Date().getFullYear()} Task Management System</div> */}
-      </aside>
+      <AuthBrandPanel
+        icon={ClipboardCheck}
+        subtitle="Team Access"
+        heading="Everyone, in one place."
+        description="Sign in to track attendance, manage your team, and keep work moving — whether you're an admin or on the floor."
+      />
 
-     
       <div className="auth-form-panel">
         <motion.div
           initial={{ opacity: 0, y: 12 }}
@@ -129,28 +111,7 @@ export default function Login() {
           <p className="auth-subheading">Enter your details to access your dashboard.</p>
 
           <form onSubmit={handleLogin} className="auth-form">
-            <div>
-              <span className="form-label" style={{ display: 'block', marginBottom: '0.5rem' }}>Role</span>
-              <div className="radio-grid">
-                {['Admin', 'Employee','TL'].map((r) => (
-                  <label
-                    key={r}
-                    className={`radio-label ${role === r ? 'selected' : ''}`}
-                  >
-                    <input
-                      type="radio"
-                      name="role"
-                      value={r}
-                      checked={role === r}
-                      onChange={(e) => setRole(e.target.value)}
-                      className="sr-only"
-                      required
-                    />
-                    {r}
-                  </label>
-                ))}
-              </div>
-            </div>
+            <RoleRadioSelector role={role} onChange={(e) => setRole(e.target.value)} />
 
             <Input
               label="Email address"
@@ -172,12 +133,6 @@ export default function Login() {
               required
             />
 
-            <div className="flex items-center justify-between" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.875rem' }}>
-              <label className="checkbox-label">
-                <input type="checkbox" style={{ borderRadius: '4px', borderColor: 'var(--border)' }} />
-                <span>Remember me</span>
-              </label>
-            </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', paddingTop: '0.25rem' }}>
               <Button type="submit" className="btn-full" size="lg" loading={loading}>

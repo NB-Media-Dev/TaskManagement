@@ -35,3 +35,19 @@ const Select = forwardRef(function Select(
 
 export default Select;
 
+export function StatusSelectFilter({ value, onChange, width = "140px", className = "form-input" }) {
+  return (
+    <select
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      className={className}
+      style={{ width, padding: "6px 10px" }}
+    >
+      <option value="All">All Statuses</option>
+      <option value="Pending">Pending</option>
+      <option value="Incomplete">In Progress</option>
+      <option value="Completed">Completed</option>
+    </select>
+  );
+}
+

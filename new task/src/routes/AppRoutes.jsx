@@ -1,5 +1,5 @@
 import { lazy, Suspense } from 'react';
-import { Routes, Route } from 'react-router-dom';
+import { Routes, Route, Navigate } from 'react-router-dom';
 import Layout from '../components/layout/Layout';
 import ProtectedRoute from '../components/layout/ProtectedRoute';
 import { TableSkeleton } from '../components/ui';
@@ -12,10 +12,14 @@ const Profile = lazy(() => import('../pages/Profile'));
 
 const AdminDashboard = lazy(() => import('../pages/admin/AdminDashboard'));
 const AdminEmployees = lazy(() => import('../pages/admin/AdminEmployees'));
-const AddEmployee = lazy(() => import('../pages/admin/AddEmployee'));
+
 const AdminTasks = lazy(() => import('../pages/TL/AdminTasks'));
 const Reports = lazy(() => import('../pages/admin/Reports'));
 const Settings = lazy(() => import('../pages/admin/Settings'));
+
+const AdminEmployee = lazy(() => import('../pages/admin2/AdminEmployee'));
+const AddEmployees = lazy(() => import('../pages/admin2/AddEmployees'));
+const Setting = lazy(() => import('../pages/admin2/Setting'));
 
 const EmployeeDashboard = lazy(() => import('../pages/employee/EmployeeDashboard'));
 const MyTasks = lazy(() => import('../pages/employee/MyTasks'));
@@ -43,18 +47,25 @@ export default function AppRoutes() {
         <Route path="/forget" element={<ForgotPassword />} />
 
     
-        <Route element={<ProtectedRoute role="Admin" />}>
+        <Route element={<ProtectedRoute role="Cto" />}>
           <Route element={<Layout />}>
             <Route path="/admin" element={<AdminDashboard />} />
             <Route path="/admin/employees" element={<AdminEmployees />} />
-            <Route path="/admin/add-employee" element={<AddEmployee />} />
-            <Route path="/admin/tasks" element={<AdminTasks />} />
             <Route path="/admin/reports" element={<Reports />} />
-            <Route path="/admin/settings" element={<Settings />} />
+            {/* <Route path="/admin/settings" element={<Settings />} /> */}
             <Route path="/admin/profile" element={<Profile />} />
           </Route>
         </Route>
 
+        <Route element={<ProtectedRoute role="Admin" />}>
+          <Route element={<Layout />}>
+            <Route path="/admin2" element={<Navigate to="/admin2/employees" replace />} />
+            <Route path="/admin2/employees" element={<AdminEmployee />} />
+            <Route path="/admin2/add-employee" element={<AddEmployees />} />
+            {/* <Route path="/admin2/setting" element={<Setting />} /> */}
+            <Route path="/admin2/profile" element={<Profile />} />
+          </Route>
+        </Route>
    
         <Route element={<ProtectedRoute role="Employee" />}>
           <Route element={<Layout />}>

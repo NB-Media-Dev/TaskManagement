@@ -71,7 +71,7 @@
 
 .sidebar-toggle-btn:hover {
   color: #FFFFFF;
-  background-color: rgba(255, 255, 255, 0.1);
+  background-color: #1f2937;
 }
 
 .sidebar-toggle-icon {
@@ -109,7 +109,7 @@
 
 .sidebar-nav-item:hover {
   color: #FFFFFF;
-  background-color: rgba(255, 255, 255, 0.1);
+  background-color: #1f2937;
 }
 
 .sidebar-nav-item.active {
@@ -171,7 +171,7 @@
 
 .sidebar-user-email {
   font-size: 0.75rem;
-  color: #CBD5E1;
+  color: #F1F5F9;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -201,5 +201,5 @@
 
 .sidebar-logout-btn:hover {
   color: #FFFFFF;
-  background-color: rgba(239, 68, 68, 0.1);
+  background-color: #DC2626;
 }

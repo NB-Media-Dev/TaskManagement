@@ -46,8 +46,8 @@ export const assignTask = ({ task, role, assign, dline, descrip, team_name }) =>
 export const getTasks = ({ id, from, to, status } = {}) =>
   api.get('/AdminTasks', { params: { id, from, to, status } });
 
-export const updateTaskStatus = ({ assign_id, task_name, assign_to, status, remarks, daily_update, tl_reply, performance }) =>
-  api.post('/UpdateTaskStatus', { assign_id, task_name, assign_to, status, remarks, daily_update, tl_reply, performance });
+export const updateTaskStatus = ({ assign_id, task_name, assign_to, status, remarks, daily_update, tl_reply, performance, sender_role }) =>
+  api.post('/UpdateTaskStatus', { assign_id, task_name, assign_to, status, remarks, daily_update, tl_reply, performance, sender_role });
 
 
 export * from "./notification";

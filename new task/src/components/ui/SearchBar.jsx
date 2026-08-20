@@ -1,4 +1,4 @@
-import { Search, X } from 'lucide-react';
+import { Search } from 'lucide-react';
 import { classNames } from '../../utils/helpers';
 
 export default function SearchBar({ value, onChange, onSubmit, placeholder = 'Search...', className = '' }) {
@@ -26,7 +26,7 @@ export default function SearchBar({ value, onChange, onSubmit, placeholder = 'Se
           style={{ pointerEvents: 'auto', cursor: 'pointer', background: 'none', border: 'none' }}
           aria-label="Clear search"
         >
-          {/* <X className="w-4 h-4" /> */}
+          &times;
         </button>
       )}
     </form>

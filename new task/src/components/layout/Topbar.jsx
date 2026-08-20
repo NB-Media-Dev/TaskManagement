@@ -6,10 +6,7 @@ import {
   ChevronDown, 
   Menu, 
   User, 
-  Settings, 
   LogOut, 
-  Moon, 
-  Sun,
   UserPlus,
   ClipboardList,
   Edit3,
@@ -18,7 +15,6 @@ import {
   AlertTriangle
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
-import { useTheme } from '../../context/ThemeContext';
 import { getNotifications, markNotificationRead, markAllNotificationsRead } from "../../services";
 import NotificationPopupContainer from './NotificationPopupContainer';
 
@@ -48,6 +44,7 @@ const getPoppedIdsSet = (email) => {
     const data = sessionStorage.getItem(key);
     return data ? new Set(JSON.parse(data)) : new Set();
   } catch (e) {
+    console.warn('Failed to parse popped notifications:', e);
     return new Set();
   }
 };
@@ -57,13 +54,12 @@ const savePoppedIdsSet = (email, setObj) => {
     const key = `popped_notifs_${email || 'default'}`;
     sessionStorage.setItem(key, JSON.stringify(Array.from(setObj)));
   } catch (e) {
-    console.error(e);
+    console.warn('Failed to save popped notifications:', e);
   }
 };
 
 export default function Topbar({ onMobileMenu }) {
   const { user, logout } = useAuth();
-  const { dark, toggleTheme } = useTheme();
   const location = useLocation();
   const navigate = useNavigate();
   
@@ -80,7 +76,16 @@ export default function Topbar({ onMobileMenu }) {
   const pageTitle = pageTitles[location.pathname] || 'Dashboard';
   const isAdmin = user?.role === 'Admin';
   const isTL = user?.role === 'TL';
-  const profilePath = isAdmin ? '/admin/profile' : isTL ? '/TL/profile' : '/employee/profile';
+  const isCto = user?.role === 'Cto';
+
+  let profilePath = '/employee/profile';
+  if (isAdmin) {
+    profilePath = '/admin2/profile';
+  } else if (isTL) {
+    profilePath = '/TL/profile';
+  } else if (isCto) {
+    profilePath = '/Admin/profile';
+  }
 
   useEffect(() => {
     const handler = (e) => {
@@ -101,11 +106,21 @@ export default function Topbar({ onMobileMenu }) {
 
   const loadNotifications = async () => {
     try {
-      const defaultRoleEmail = (user?.role === 'TL' || user?.position === 'TL') ? 'TL' : (user?.role === 'Admin' ? 'Admin' : (user?.name || 'Admin'));
-      const emailToUse = userEmail || user?.email || defaultRoleEmail;
+      let defaultRoleEmail = user?.name || 'Cto';
+      if (user?.role === 'Cto') {
+        defaultRoleEmail = 'Cto';
+      }
+
+      const emailToUse = userEmail || user?.email || user?.emp_email || user?.u_email || user?.name || defaultRoleEmail;
       const res = await getNotifications(emailToUse);
       if (res.data?.success) {
-        const fetchedList = res.data.data || [];
+        let fetchedList = res.data.data || [];
+        if (user?.role === 'Admin') {
+          fetchedList = fetchedList.filter((n) => {
+            const typeStr = String(n.type || '').toUpperCase();
+            return !typeStr.includes('TASK');
+          });
+        }
         setNotifications(fetchedList);
 
         const poppedSet = getPoppedIdsSet(emailToUse);
@@ -160,8 +175,10 @@ export default function Topbar({ onMobileMenu }) {
     const typeStr = String(n.type || '').toUpperCase();
     const titleStr = String(n.title || '').toLowerCase();
 
-    if (userRole === 'Admin') {
+    if (userRole === 'Cto') {
       navigate('/admin/reports');
+    } else if (userRole === 'Admin') {
+      navigate('/admin2/employees');
     } else if (userRole === 'TL') {
       if (typeStr.includes('ASSIGN') || titleStr.includes('assign')) {
         navigate('/TL/assign-task');
@@ -178,7 +195,7 @@ export default function Topbar({ onMobileMenu }) {
 
   const handleMarkAllRead = async () => {
     try {
-      const emailToUse = userEmail || user?.email || 'Admin';
+      const emailToUse = userEmail || user?.email || 'Cto';
       setNotifications(prev => prev.map(n => ({ ...n, is_read: 1 })));
       await markAllNotificationsRead(emailToUse);
     } catch (err) {
@@ -287,10 +304,17 @@ export default function Topbar({ onMobileMenu }) {
                     </div>
                   ) : (
                     paginatedNotifications.map((n) => (
-                      <div 
+                      <button 
+                        type="button"
                         key={n.id} 
                         className={`topbar-notif-item ${n.is_read ? 'read' : 'unread'}`}
                         onClick={() => handleNotificationClick(n)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            handleNotificationClick(n);
+                          }
+                        }}
                       >
                         <div className="topbar-notif-icon-wrap">
                           {getNotifIcon(n.type)}
@@ -305,7 +329,7 @@ export default function Topbar({ onMobileMenu }) {
                         {!n.is_read && (
                           <span className="topbar-notif-unread-dot" title="Unread" />
                         )}
-                      </div>
+                      </button>
                     ))
                   )}
                 </div>
@@ -370,15 +394,7 @@ export default function Topbar({ onMobileMenu }) {
                 >
                   <User className="w-4 h-4 text-ink/50" /> My Profile
                 </Link>
-                {isAdmin && (
-                  <Link
-                    to="/admin/settings"
-                    onClick={() => setDropdownOpen(false)}
-                    className="topbar-dropdown-link"
-                  >
-                    <Settings className="w-4 h-4 text-ink/50" /> Settings
-                  </Link>
-                )}
+                
                 <button
                   onClick={logout}
                   className="topbar-dropdown-logout"

@@ -6,7 +6,7 @@
 // import { changePassword as apiChangePassword } from '../../services';
 // import { executePasswordChange } from '../../utils/helpers';
 
-// export default function Settings() {
+// export default function Setting() {
 //   const { user } = useAuth();
 //   const toast = useToast();
 
