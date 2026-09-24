@@ -289,42 +289,17 @@ app.post("/create", (req, res) => {
         proceedWithUserCreate();
     }
 });
-
 app.post(['/login', '/Login'], (req, res) => {
-    const { u_email, u_password } = req.body;
+    const { email, password, role } = req.body;
 
-    db.query("SELECT * FROM users WHERE u_email = ?", [u_email], (err, results) => {
-        if (err) {
-            return res.status(500).json({ message: "Database query error" });
-        }
-        if (results.length === 0) {
-            return res.status(401).json({ message: "Invalid email or password" });
-        }
+    console.log(`Login attempt for email: ${email}, role: ${role}`);
 
-        const user = results[0];
-
-        
-        if (u_password === user.u_password) {
-            return res.status(200).json({ 
-                message: "Login successful", 
-                user: { id: user.u_id, name: user.u_name, email: user.u_email, role: user.u_role } 
-            });
-        } else {
-            return res.status(401).json({ message: "Invalid email or password" });
-        }
-    });
-});
-
-app.post("/Login", (req,res)=>{
-    const {email,password,role}=req.body;
-
-    if(!email || !password || !role){
-        return res.json({
-            success:false,
-            message:"Email password and role required"
+    if (!email || !password || !role) {
+        return res.status(400).json({
+            success: false,
+            message: "Email, password, and role are required"
         });
     }
-    
 
     const sql = `
         SELECT 
@@ -333,135 +308,121 @@ app.post("/Login", (req,res)=>{
             u_password,
             u_role
         FROM users
-        WHERE LOWER(TRIM(u_email))=LOWER(TRIM(?))
+        WHERE LOWER(TRIM(u_email)) = LOWER(TRIM(?))
     `;
 
-    db.query(sql,[email],(err,userRows)=>{
-
-        if(err){
-            return res.json({
-                success:false,
-                message:err.message
+    db.query(sql, [email], (err, userRows) => {
+        if (err) {
+            return res.status(500).json({
+                success: false,
+                message: err.message
             });
         }
 
-        if(userRows.length===0){
-            return res.json({
-                success:false,
-                message:"User not found"
+        if (userRows.length === 0) {
+            return res.status(401).json({
+                success: false,
+                message: "User not found"
             });
         }
-        const user=userRows[0];
-        if(user.u_password !== password){
 
-            return res.json({
-                success:false,
-                message:"Invalid password"
+        const user = userRows[0];
+        
+        if (user.u_password !== password) {
+            return res.status(401).json({
+                success: false,
+                message: "Invalid password"
             });
-
         }
-        if(user.u_role==="Admin"){
 
-            if(role!=="Admin"){
-
-                return res.json({
-                    success:false,
-                    message:"Please select Admin login"
+        if (user.u_role.toLowerCase() === "admin") {
+            if (role.toLowerCase() !== "admin") {
+                return res.status(403).json({
+                    success: false,
+                    message: "Please select Admin login"
                 });
-
             }
-            return res.json({
-                success:true,
-                user:{
-                    name:user.u_name,
-                    email:user.u_email,
-                    role:"Admin"
+            return res.status(200).json({
+                success: true,
+                user: {
+                    name: user.u_name,
+                    email: user.u_email,
+                    role: "Admin"
                 }
             });
-
         }
-        if(user.u_role==="Cto"){
 
-            if(role!=="Cto"){
-
-                return res.json({
-                    success:false,
-                    message:"Please select Cto login"
+        if (user.u_role.toLowerCase() === "cto") {
+            if (role.toLowerCase() !== "cto") {
+                return res.status(403).json({
+                    success: false,
+                    message: "Please select Cto login"
                 });
-
             }
-            return res.json({
-                success:true,
-                user:{
-                    name:user.u_name,
-                    email:user.u_email,
-                    role:"Cto"
+            return res.status(200).json({
+                success: true,
+                user: {
+                    name: user.u_name,
+                    email: user.u_email,
+                    role: "Cto"
                 }
             });
-
         }
-        const empSql=`
 
+        const empSql = `
             SELECT 
                 emp_name,
                 emp_role,
                 position
             FROM employee
-            WHERE emp_email=?
-
+            WHERE emp_email = ?
         `;
-        db.query(empSql,[email],(err,empRows)=>{
-            if(err){
-                return res.json({
-                    success:false,
-                    message:err.message
+        
+        db.query(empSql, [email], (err, empRows) => {
+            if (err) {
+                return res.status(500).json({
+                    success: false,
+                    message: err.message
                 });
             }
-            if(empRows.length===0){
-                return res.json({
-                    success:false,
-                    message:"Employee record not found"
-                });
-
-            }
-            const employee=empRows[0];
-            const actualRole =
-                employee.position==="TL"
-                ? "TL" : "Employee";
-
-            if(role==="Employee" && actualRole==="TL"){
-                return res.json({
-
-                    success:false,
-
-                    message:
-                    "You are a Team Leader. Please login using TL role"
-
-                });
-
-            }
-            if(role==="TL" && actualRole!=="TL"){
-                return res.json({
-                    success:false,
-                    message:
-                    "You are not a Team Leader"
-
+            if (empRows.length === 0) {
+                return res.status(404).json({
+                    success: false,
+                    message: "Employee record not found"
                 });
             }
-            return res.json({
-             success:true,
-                user:{
-                    name:employee.emp_name,
-                    email:user.u_email,
-                    role:actualRole,
-                    emp_role:employee.emp_role,
-                    position:employee.position
+
+            const employee = empRows[0];
+            const actualRole = employee.position === "TL" ? "TL" : "Employee";
+
+            if (role === "Employee" && actualRole === "TL") {
+                return res.status(403).json({
+                    success: false,
+                    message: "You are a Team Leader. Please login using TL role"
+                });
+            }
+            
+            if (role === "TL" && actualRole !== "TL") {
+                return res.status(403).json({
+                    success: false,
+                    message: "You are not a Team Leader"
+                });
+            }
+
+            return res.status(200).json({
+                success: true,
+                user: {
+                    name: employee.emp_name,
+                    email: user.u_email,
+                    role: actualRole,
+                    emp_role: employee.emp_role,
+                    position: employee.position
                 }
             });
         });
     });
-
 });
+
 app.post("/forget", (req, res) => {
     const { email, password } = req.body;
 
