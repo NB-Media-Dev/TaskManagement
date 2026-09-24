@@ -69,8 +69,12 @@ db.connect((err) => {
        
     }
         });
-        db.query("ALTER TABLE assign ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'Pending'", (assignErr) => {
-            if (assignErr) console.log("Assign status note:", assignErr.message);
+            // 1. Fix the Assign Status query (Remove 'IF NOT EXISTS')
+            db.query("ALTER TABLE assign ADD COLUMN status VARCHAR(50) DEFAULT 'Pending'", (assignErr) => {
+            // We catch the duplicate error safely so it never crashes your live server
+            if (assignErr && !assignErr.message.includes("Duplicate column name")) {
+                console.log("Assign status note:", assignErr.message);
+            }
         });
         db.query("ALTER TABLE assign ADD COLUMN assign_date DATETIME DEFAULT CURRENT_TIMESTAMP", (dateErr) => {
             if (dateErr) console.log("Assign date note:", dateErr.message);
@@ -93,27 +97,21 @@ db.connect((err) => {
         db.query("ALTER TABLE assign ADD COLUMN assign_id INT AUTO_INCREMENT PRIMARY KEY", (idErr) => {
             if (idErr) console.log("Assign ID note:", idErr.message);
         });
-        db.query("ALTER TABLE employee ADD COLUMN IF NOT EXISTS position VARCHAR(50) DEFAULT 'Employee'", (empPosErr) => {
-            if (empPosErr) {
-                db.query("ALTER TABLE employee ADD COLUMN position VARCHAR(50) DEFAULT 'Employee'", (empPosErr2) => {
-                    if (empPosErr2) console.log("Employee position note:", empPosErr2.message);
-                });
+       db.query("ALTER TABLE employee ADD COLUMN position VARCHAR(50) DEFAULT 'Employee'", (empPosErr) => {
+            if (empPosErr && !empPosErr.message.includes("Duplicate column name")) {
+                console.log("Employee position note:", empPosErr.message);
             }
         });
-        db.query("ALTER TABLE employee ADD COLUMN IF NOT EXISTS previous_role VARCHAR(50)", (empPrevErr) => {
-            if (empPrevErr) {
-                db.query("ALTER TABLE employee ADD COLUMN previous_role VARCHAR(50)", (empPrevErr2) => {
-                    if (empPrevErr2) console.log("Employee previous_role note:", empPrevErr2.message);
-                });
+        db.query("ALTER TABLE employee ADD COLUMN previous_role VARCHAR(50)", (empPrevErr) => {
+            if (empPrevErr && !empPrevErr.message.includes("Duplicate column name")) {
+                console.log("Employee previous_role note:", empPrevErr.message);
             }
         });
-        db.query("ALTER TABLE employee ADD COLUMN IF NOT EXISTS designation VARCHAR(100)", (empDesErr) => {
-            if (empDesErr) {
-                db.query("ALTER TABLE employee ADD COLUMN designation VARCHAR(100)", (empDesErr2) => {
-                    if (empDesErr2) console.log("Employee designation note:", empDesErr2.message);
-                });
-            }
-        });
+       db.query("ALTER TABLE employee ADD COLUMN designation VARCHAR(100)", (empDesErr) => {
+        if (empDesErr && !empDesErr.message.includes("Duplicate column name")) {
+            console.log("Employee designation note:", empDesErr.message);
+        }
+    });
 
         db.query("CREATE UNIQUE INDEX idx_emp_email ON employee (emp_email)", (uniqErr1) => {
             if (uniqErr1) console.log("emp_email index note:", uniqErr1.message);
