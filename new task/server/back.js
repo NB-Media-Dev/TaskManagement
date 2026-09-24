@@ -17,8 +17,8 @@ const ALLOWED_ORIGINS = new Set([
   "http://127.0.0.1:5173",
   "http://127.0.0.1:5174",
   "http://127.0.0.1:5175",
-  "https://vercel.app",
-  "https://vercel.app", 
+ "https://task-management-vidhvaa.vercel.app",
+  "https://task-management-omega-sand.vercel.app",
   ...envOrigins,
 ]);
 
@@ -36,7 +36,6 @@ app.use(cors({
                     hostname === "127.0.0.1" ||
                     /^192\.168\.\d{1,3}\.\d{1,3}$/.test(hostname) ||
                     /^10\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(hostname) ||
-                    /^172\.(1[6-9]|2\d|3[0-1])\.\d{1,3}\.\d{1,3}$/.test(hostname) ||
                     hostname.endsWith(".local")
                 );
                  if (isLocalNetwork) {
