@@ -17,7 +17,8 @@ const ALLOWED_ORIGINS = new Set([
   "http://127.0.0.1:5173",
   "http://127.0.0.1:5174",
   "http://127.0.0.1:5175",
-  "https://yourdomain.com",
+  "https://vercel.app",
+  "https://vercel.app", 
   ...envOrigins,
 ]);
 
@@ -70,9 +71,9 @@ db.connect((err) => {
        
     }
         });
-            // 1. Fix the Assign Status query (Remove 'IF NOT EXISTS')
+            
             db.query("ALTER TABLE assign ADD COLUMN status VARCHAR(50) DEFAULT 'Pending'", (assignErr) => {
-            // We catch the duplicate error safely so it never crashes your live server
+            
             if (assignErr && !assignErr.message.includes("Duplicate column name")) {
                 console.log("Assign status note:", assignErr.message);
             }
