@@ -292,7 +292,7 @@ app.post("/create", (req, res) => {
 app.post(['/login', '/Login'], (req, res) => {
     const { email, password, role } = req.body;
 
-    console.log(`Login attempt for email: ${email}, role: ${role}`);
+    console.log(`Login attempt for: ${email}, Role: ${role}`);
 
     if (!email || !password || !role) {
         return res.status(400).json({
@@ -313,59 +313,49 @@ app.post(['/login', '/Login'], (req, res) => {
 
     db.query(sql, [email], (err, userRows) => {
         if (err) {
-            return res.status(500).json({
-                success: false,
-                message: err.message
-            });
+            console.error("Database SQL error:", err.message);
+            return res.status(500).json({ success: false, message: err.message });
         }
 
-        if (userRows.length === 0) {
-            return res.status(401).json({
-                success: false,
-                message: "User not found"
-            });
+        if (!userRows || userRows.length === 0) {
+            console.log("Login failed: User email not found in database.");
+            return res.status(401).json({ success: false, message: "User not found" });
         }
 
-        const user = userRows[0];
+        // Fix: Extract the actual single user object out of the rows array array!
+        const user = userRows[0]; 
         
-        if (user.u_password !== password) {
-            return res.status(401).json({
-                success: false,
-                message: "Invalid password"
-            });
+        console.log("Database user found:", user.u_email, "Stored Role:", user.u_role);
+
+        // Remove any sneaky trailing spaces from user text inputs or fields
+        const inputPassword = String(password).trim();
+        const storedPassword = String(user.u_password).trim();
+
+        if (storedPassword !== inputPassword) {
+            console.log("Login failed: Password mismatch.");
+            return res.status(401).json({ success: false, message: "Invalid password" });
         }
 
-        if (user.u_role.toLowerCase() === "admin") {
-            if (role.toLowerCase() !== "admin") {
-                return res.status(403).json({
-                    success: false,
-                    message: "Please select Admin login"
-                });
+        const userRoleLower = String(user.u_role).toLowerCase().trim();
+        const inputRoleLower = String(role).toLowerCase().trim();
+
+        if (userRoleLower === "admin") {
+            if (inputRoleLower !== "admin") {
+                return res.status(403).json({ success: false, message: "Please select Admin login" });
             }
             return res.status(200).json({
                 success: true,
-                user: {
-                    name: user.u_name,
-                    email: user.u_email,
-                    role: "Admin"
-                }
+                user: { name: user.u_name, email: user.u_email, role: "Admin" }
             });
         }
 
-        if (user.u_role.toLowerCase() === "cto") {
-            if (role.toLowerCase() !== "cto") {
-                return res.status(403).json({
-                    success: false,
-                    message: "Please select Cto login"
-                });
+        if (userRoleLower === "cto") {
+            if (inputRoleLower !== "cto") {
+                return res.status(403).json({ success: false, message: "Please select Cto login" });
             }
             return res.status(200).json({
                 success: true,
-                user: {
-                    name: user.u_name,
-                    email: user.u_email,
-                    role: "Cto"
-                }
+                user: { name: user.u_name, email: user.u_email, role: "Cto" }
             });
         }
 
@@ -375,38 +365,26 @@ app.post(['/login', '/Login'], (req, res) => {
                 emp_role,
                 position
             FROM employee
-            WHERE emp_email = ?
+            WHERE LOWER(TRIM(emp_email)) = LOWER(TRIM(?))
         `;
         
         db.query(empSql, [email], (err, empRows) => {
             if (err) {
-                return res.status(500).json({
-                    success: false,
-                    message: err.message
-                });
+                return res.status(500).json({ success: false, message: err.message });
             }
-            if (empRows.length === 0) {
-                return res.status(404).json({
-                    success: false,
-                    message: "Employee record not found"
-                });
+            if (!empRows || empRows.length === 0) {
+                return res.status(404).json({ success: false, message: "Employee record not found" });
             }
 
             const employee = empRows[0];
-            const actualRole = employee.position === "TL" ? "TL" : "Employee";
+            const actualRole = String(employee.position).toUpperCase().trim() === "TL" ? "TL" : "Employee";
 
             if (role === "Employee" && actualRole === "TL") {
-                return res.status(403).json({
-                    success: false,
-                    message: "You are a Team Leader. Please login using TL role"
-                });
+                return res.status(403).json({ success: false, message: "You are a Team Leader. Please login using TL role" });
             }
             
             if (role === "TL" && actualRole !== "TL") {
-                return res.status(403).json({
-                    success: false,
-                    message: "You are not a Team Leader"
-                });
+                return res.status(403).json({ success: false, message: "You are not a Team Leader" });
             }
 
             return res.status(200).json({
