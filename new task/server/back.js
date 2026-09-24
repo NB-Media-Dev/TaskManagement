@@ -58,6 +58,7 @@ app.use(express.json());
     user: process.env.DB_USER || "root",
     password: process.env.DB_PASSWORD || "",
     database: process.env.DB_NAME || "react",
+    port: process.env.DB_PORT || 3306, 
 });
 db.connect((err) => {
     if (err) {
