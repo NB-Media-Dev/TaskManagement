@@ -11,7 +11,7 @@ const getApiBaseUrl = () => {
     const protocol = window.location.protocol || 'http:';
     return `${protocol}//${hostname}:${port}`;
   }
-  return 'http://localhost:5000';
+  return 'https://railway.app';
 };
 
 export const API_BASE_URL = getApiBaseUrl();
